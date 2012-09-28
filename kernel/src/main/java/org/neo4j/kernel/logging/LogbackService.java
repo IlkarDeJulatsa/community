@@ -85,6 +85,7 @@ public class LogbackService
                     loggerContext.putProperty( "remote_logging_port", config.get( GraphDatabaseSettings
                             .remote_logging_port ).toString() );
                     try
+
                     {
                         configurator.doConfigure( getClass().getResource( "/neo4j-logback.xml" ) );
                     }

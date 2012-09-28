@@ -404,7 +404,7 @@ public class TxLog
                 Xid xid = new XidImpl( globalId, new byte[0] );
                 if ( !recordMap.containsKey( xid ) )
                 {
-                    throw new IOException( "Commiting xid[" + xid
+                    throw new IOException( "Committing xid[" + xid
                         + "] mark found but no record list found in map" );
                 }
                 List<Record> recordList = recordMap.get( xid );
@@ -428,7 +428,7 @@ public class TxLog
                 Xid xid = new XidImpl( globalId, new byte[0] );
                 if ( !recordMap.containsKey( xid ) )
                 {
-                    throw new IOException( "Commiting xid[" + xid
+                    throw new IOException( "Committing xid[" + xid
                         + "] mark found but no record list found in map" );
                 }
                 recordMap.remove( xid );

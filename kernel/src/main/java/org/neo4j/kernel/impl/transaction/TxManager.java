@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -81,7 +83,8 @@ public class TxManager extends AbstractTransactionManager
     private final int maxTxLogRecordCount = 1000;
     private int eventIdentifierCounter = 0;
 
-    private TxLog txLog = null;
+    private final Map<RecoveredBranchInfo, Boolean> branches = new HashMap<RecoveredBranchInfo, Boolean>();
+    private volatile TxLog txLog = null;
     private boolean tmOk = false;
     private boolean blocked = false;
 
@@ -133,6 +136,8 @@ public class TxManager extends AbstractTransactionManager
         return exception;
     }
 
+    private volatile boolean recovered = false;
+
     @Override
     public void init()
     {
@@ -142,14 +147,47 @@ public class TxManager extends AbstractTransactionManager
     public void start()
             throws Throwable
     {
+        openLog();
+        findPendingDatasources();
         dataSourceRegistrationListener = new TxManagerDataSourceRegistrationListener();
         xaDataSourceManager.addDataSourceRegistrationListener( dataSourceRegistrationListener );
+    }
 
+    private void findPendingDatasources()
+    {
+        try
+        {
+            Iterator<List<TxLog.Record>> danglingRecordList = txLog.getDanglingRecords();
+
+            while ( danglingRecordList.hasNext() )
+            {
+                List<TxLog.Record> tx = danglingRecordList.next();
+                for ( TxLog.Record rec : tx )
+                {
+                    if ( rec.getType() == TxLog.BRANCH_ADD )
+                    {
+                        RecoveredBranchInfo branchId = new RecoveredBranchInfo( rec.getBranchId()) ;
+                        if ( branches.containsKey( branchId ) )
+                        {
+                            continue;
+                        }
+                        branches.put( branchId, false );
+                    }
+                }
+            }
+        }
+        catch ( IOException e )
+        {
+            log.log( Level.SEVERE, "Unable to recover pending branches", e );
+            throw logAndReturn( "TM startup failure",
+                    new TransactionFailureException( "Unable to start TM", e ) );
+        }
     }
 
     @Override
     public void stop()
     {
+        recovered = false;
         xaDataSourceManager.removeDataSourceRegistrationListener( dataSourceRegistrationListener );
         closeLog();
     }
@@ -197,6 +235,7 @@ public class TxManager extends AbstractTransactionManager
             {
                 txLog.close();
                 txLog = null;
+                recovered = false;
             }
             catch ( IOException e )
             {
@@ -686,75 +725,87 @@ public class TxManager extends AbstractTransactionManager
         // ...
     }
 
+    private void openLog()
+    {
+        logSwitcherFileName = txLogDir + separator + "active_tx_log";
+        txLog1FileName = "tm_tx_log.1";
+        txLog2FileName = "tm_tx_log.2";
+        try
+        {
+            if ( fileSystem.fileExists( logSwitcherFileName ) )
+            {
+                FileChannel fc = fileSystem.open( logSwitcherFileName, "rw" );
+                byte fileName[] = new byte[256];
+                ByteBuffer buf = ByteBuffer.wrap( fileName );
+                fc.read( buf );
+                fc.close();
+                String currentTxLog = txLogDir + separator
+                        + UTF8.decode( fileName ).trim();
+                if ( !fileSystem.fileExists( currentTxLog ) )
+                {
+                    throw logAndReturn( "TM startup failure",
+                            new TransactionFailureException(
+                                    "Unable to start TM, " + "active tx log file[" +
+                                            currentTxLog + "] not found." ) );
+                }
+                txLog = new TxLog( currentTxLog, fileSystem, msgLog );
+                msgLog.logMessage( "TM opening log: " + currentTxLog, true );
+            }
+            else
+            {
+                if ( fileSystem.fileExists( txLogDir + separator + txLog1FileName )
+                        || fileSystem.fileExists( txLogDir + separator + txLog2FileName ) )
+                {
+                    throw logAndReturn( "TM startup failure",
+                            new TransactionFailureException(
+                                    "Unable to start TM, "
+                                            + "no active tx log file found but found either "
+                                            + txLog1FileName + " or " + txLog2FileName
+                                            + " file, please set one of them as active or "
+                                            + "remove them." ) );
+                }
+                ByteBuffer buf = ByteBuffer.wrap( txLog1FileName
+                        .getBytes( "UTF-8" ) );
+                FileChannel fc = fileSystem.open( logSwitcherFileName, "rw" );
+                fc.write( buf );
+                txLog = new TxLog( txLogDir + separator + txLog1FileName, fileSystem, msgLog );
+                msgLog.logMessage( "TM new log: " + txLog1FileName, true );
+                fc.force( true );
+                fc.close();
+            }
+        }
+        catch ( IOException e )
+        {
+            log.log( Level.SEVERE, "Unable to start TM", e );
+            throw logAndReturn( "TM startup failure",
+                    new TransactionFailureException( "Unable to start TM", e ) );
+        }
+    }
+
     public void doRecovery() throws Throwable
     {
+        if ( txLog == null )
+        {
+            openLog();
+        }
+        if ( recovered )
+        {
+            return;
+        }
         try
         {
             // Assuming here that the last datasource to register is the Neo one
-            if ( !tmOk )
+//            if ( !tmOk )
             {
                 txThreadMap = new ConcurrentHashMap<Thread, TransactionImpl>();
-                logSwitcherFileName = txLogDir + separator + "active_tx_log";
-                txLog1FileName = "tm_tx_log.1";
-                txLog2FileName = "tm_tx_log.2";
-                try
-                {
-                    if ( fileSystem.fileExists( logSwitcherFileName ) )
-                    {
-                        FileChannel fc = fileSystem.open( logSwitcherFileName, "rw" );
-                        byte fileName[] = new byte[256];
-                        ByteBuffer buf = ByteBuffer.wrap( fileName );
-                        fc.read( buf );
-                        fc.close();
-                        String currentTxLog = txLogDir + separator
-                                + UTF8.decode( fileName ).trim();
-                        if ( !fileSystem.fileExists( currentTxLog ) )
-                        {
-                            throw logAndReturn( "TM startup failure",
-                                    new TransactionFailureException(
-                                            "Unable to start TM, " + "active tx log file[" +
-                                                    currentTxLog + "] not found." ) );
-                        }
-                        txLog = new TxLog( currentTxLog, fileSystem, msgLog );
-                        msgLog.logMessage( "TM opening log: " + currentTxLog, true );
-                    }
-                    else
-                    {
-                        if ( fileSystem.fileExists( txLogDir + separator + txLog1FileName )
-                                || fileSystem.fileExists( txLogDir + separator + txLog2FileName ) )
-                        {
-                            throw logAndReturn( "TM startup failure",
-                                    new TransactionFailureException(
-                                            "Unable to start TM, "
-                                                    + "no active tx log file found but found either "
-                                                    + txLog1FileName + " or " + txLog2FileName
-                                                    + " file, please set one of them as active or "
-                                                    + "remove them." ) );
-                        }
-                        ByteBuffer buf = ByteBuffer.wrap( txLog1FileName
-                                .getBytes( "UTF-8" ) );
-                        FileChannel fc = fileSystem.open( logSwitcherFileName, "rw" );
-                        fc.write( buf );
-                        txLog = new TxLog( txLogDir + separator + txLog1FileName, fileSystem, msgLog );
-                        msgLog.logMessage( "TM new log: " + txLog1FileName, true );
-                        fc.force( true );
-                        fc.close();
-                    }
-                    tmOk = true;
-                }
-                catch ( IOException e )
-                {
-                    log.log( Level.SEVERE, "Unable to start TM", e );
-                    throw logAndReturn( "TM startup failure",
-                            new TransactionFailureException( "Unable to start TM", e ) );
-                }
                 // Do recovery on start - all Resources should be registered by now
                 Iterator<List<TxLog.Record>> danglingRecordList = txLog.getDanglingRecords();
                 boolean danglingRecordFound = danglingRecordList.hasNext();
+
                 if ( danglingRecordFound )
                 {
                     log.info( "Unresolved transactions found, " +
-                            "recovery started ..." );
+                            "recovery started ... " + txLogDir );
 
                     msgLog.logMessage( "TM non resolved transactions found in " + txLog.getName(), true );
 
@@ -767,6 +818,8 @@ public class TxManager extends AbstractTransactionManager
                             "resolved to a consistent state." );
                 }
                 getTxLog().truncate();
+                recovered = true;
+                tmOk = true;
             }
         }
         catch ( Throwable t )
@@ -885,16 +938,68 @@ public class TxManager extends AbstractTransactionManager
         @Override
         public void registeredDataSource( XaDataSource ds )
         {
+            try
+            {
+                branches.put( new RecoveredBranchInfo( ds.getBranchId() ), true );
+                boolean everythingRegistered = true;
+                for ( boolean dsRegistered : branches.values() )
+                {
+                    everythingRegistered &= dsRegistered;
+                }
+                if ( everythingRegistered && txLog == null )
+                {
+                    openLog();
+                }
+            }
+            catch ( Throwable throwable )
+            {
+                throw new RuntimeException( throwable );
+            }
         }
 
         @Override
         public void unregisteredDataSource( XaDataSource ds )
         {
-            if ( xaDataSourceManager.getAllRegisteredDataSources().size() != 0 )
+            branches.put( new RecoveredBranchInfo( ds.getBranchId() ), false );
+            boolean everythingUnregistered = true;
+            for (boolean dsRegistered : branches.values())
             {
-                return;
+                everythingUnregistered &= !dsRegistered;
             }
-            closeLog();
+            if (everythingUnregistered)
+            {
+                closeLog();
+            }
+        }
+    }
+
+    /*
+     * We use a hash map to store the branch ids. byte[] however does not offer a useful implementation of equals() or
+     * hashCode(), so we need a wrapper that does that.
+     */
+    private static final class RecoveredBranchInfo
+    {
+        final byte[] branchId;
+
+        private RecoveredBranchInfo( byte[] branchId )
+        {
+            this.branchId = branchId;
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Arrays.hashCode( branchId );
+        }
+
+        @Override
+        public boolean equals( Object obj )
+        {
+            if ( obj == null || obj.getClass() != RecoveredBranchInfo.class )
+            {
+                return false;
+            }
+            return Arrays.equals( branchId, ( ( RecoveredBranchInfo )obj ).branchId );
         }
     }
 }

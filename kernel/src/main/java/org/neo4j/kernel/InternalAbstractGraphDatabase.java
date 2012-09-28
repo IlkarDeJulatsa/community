@@ -605,7 +605,6 @@ public abstract class InternalAbstractGraphDatabase
         };
     }
 
-
     @Override
     public void shutdown()
     {
