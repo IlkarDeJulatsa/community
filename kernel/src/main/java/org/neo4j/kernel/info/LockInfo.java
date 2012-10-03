@@ -38,7 +38,7 @@ public final class LockInfo
     @ConstructorProperties( { "resourceType", "resourceId", "readCount", "writeCount", "lockingTransactions",
             "waitingThreads" } )
     public LockInfo( ResourceType type, String resourceId, int readCount, int writeCount,
-            List<LockingTransaction> locking, List<WaitingThread> waiting )
+            Collection<LockingTransaction> locking, Collection<WaitingThread> waiting )
     {
         this.type = type;
         this.resource = resourceId;
@@ -73,23 +73,21 @@ public final class LockInfo
         builder.append( "Total lock count: readCount=" + this.getReadCount() + " writeCount="
                 + this.getWriteCount() + " for "
                 + this.getResourceType().toString( this.getResourceId() ) ).append( "\n" );
+        builder.append( "Lock holders:\n" );
+        for ( LockingTransaction tle : this.getLockingTransactions() )
+        {
+            builder.append( tle ).append( "\n" );
+        }
         builder.append( "Waiting list:" ).append( "\n" );
         StringBuilder waitList = new StringBuilder();
         String sep = "";
         for ( WaitingThread we : this.getWaitingThreads() )
         {
-            waitList.append( sep ).append( "\"").append( we.getThreadName()).append( "\" " ).append( "[tid=" ).
-                    append( we.getThreadId() ).append( "(" ).append(
-                    we.getReadCount() ).append( "r," ).append( we.getWriteCount() ).append( "w )," ).append(
-                    we.isWaitingOnWriteLock() ? "Write" : "Read" ).append( "Lock]" );
+            waitList.append( sep ).append( we );
             sep = ", ";
         }
         builder.append( waitList ).append( "\n" );
-        for ( LockingTransaction tle : this.getLockingTransactions() )
-        {
-            builder.append( "" + tle.getTransaction() + "(" + tle.getReadCount() + "r," + tle.getWriteCount()
-                    + "w)" ).append( "\n" );
-        }
+
         return builder.toString();
     }
 
