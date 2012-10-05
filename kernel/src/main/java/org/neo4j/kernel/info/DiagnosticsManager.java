@@ -198,6 +198,14 @@ public final class DiagnosticsManager implements Iterable<DiagnosticsProvider>, 
         extract( identifier, logger );
     }
 
+    public void dumpAll( StringLogger log )
+    {
+        for ( DiagnosticsProvider provider : providers )
+        {
+            dump( provider, DiagnosticsPhase.EXPLICIT, log );
+        }
+    }
+
     public void extract( String identifier, StringLogger log )
     {
         for ( DiagnosticsProvider provider : providers )
