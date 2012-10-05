@@ -105,7 +105,7 @@ public abstract class AbstractNeoServer implements NeoServer
 	        DiagnosticsManager diagnosticsManager = database.getGraph().getDiagnosticsManager();
 	
 	        StringLogger logger = diagnosticsManager.getTargetLog();
-	        logger.logMessage( "--- SERVER STARTUP START ---" );
+	        logger.logMessage( "--- SERVER STARTED START ---" );
 	
 	        diagnosticsManager.register( Configurator.DIAGNOSTICS, configurator );
 	
@@ -113,7 +113,7 @@ public abstract class AbstractNeoServer implements NeoServer
 	
 	        startWebServer( logger );
 	
-	        logger.logMessage( "--- SERVER STARTUP END ---", true );
+	        logger.logMessage( "--- SERVER STARTED END ---", true );
 		} catch(Throwable t)
 		{
 			if(t instanceof RuntimeException)
