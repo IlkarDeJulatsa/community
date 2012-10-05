@@ -17,23 +17,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+package org.neo4j.kernel.impl.core;
 
-package org.neo4j.kernel;
-
-import org.neo4j.kernel.impl.core.LastCommittedTxIdSetter;
-
-/**
-* Default implementation of LastCommittedTxIdSetter that does nothing
-*/
-public class DefaultLastCommittedTxIdSetter implements LastCommittedTxIdSetter
+public interface LastTxIdGetter
 {
-    public void setLastCommittedTxId( long txId )
-    {
-        // Do nothing
-    }
-
-    @Override
-    public void close()
-    {
-    }
+    public long getLastTxId();
 }

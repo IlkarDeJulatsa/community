@@ -62,7 +62,6 @@ import org.neo4j.kernel.impl.core.Caches;
 import org.neo4j.kernel.impl.core.DefaultCaches;
 import org.neo4j.kernel.impl.core.DefaultRelationshipTypeCreator;
 import org.neo4j.kernel.impl.core.KernelPanicEventGenerator;
-import org.neo4j.kernel.impl.core.LastCommittedTxIdSetter;
 import org.neo4j.kernel.impl.core.LockReleaser;
 import org.neo4j.kernel.impl.core.NodeImpl;
 import org.neo4j.kernel.impl.core.NodeManager;
@@ -171,7 +170,6 @@ public abstract class InternalAbstractGraphDatabase
     protected LockManager lockManager;
     protected IdGeneratorFactory idGeneratorFactory;
     protected RelationshipTypeCreator relationshipTypeCreator;
-    protected LastCommittedTxIdSetter lastCommittedTxIdSetter;
     protected NioNeoDbPersistenceSource persistenceSource;
     protected TxEventSyncHookFactory syncHook;
     protected PersistenceManager persistenceManager;
@@ -381,8 +379,6 @@ public abstract class InternalAbstractGraphDatabase
         idGeneratorFactory = createIdGeneratorFactory();
 
         relationshipTypeCreator = createRelationshipTypeCreator();
-
-        lastCommittedTxIdSetter = createLastCommittedTxIdSetter();
 
         persistenceSource = life.add( new NioNeoDbPersistenceSource( xaDataSourceManager ) );
 
@@ -620,8 +616,7 @@ public abstract class InternalAbstractGraphDatabase
 
     protected StoreFactory createStoreFactory()
     {
-        return new StoreFactory( config, idGeneratorFactory, fileSystem, lastCommittedTxIdSetter,
-                logging.getLogger( Loggers.NEOSTORE ), txHook );
+        return new StoreFactory( config, idGeneratorFactory, fileSystem, logging.getLogger( Loggers.NEOSTORE ), txHook );
     }
 
     protected RecoveryVerifier createRecoveryVerifier()
@@ -632,11 +627,6 @@ public abstract class InternalAbstractGraphDatabase
     protected KernelData createKernelData()
     {
         return new DefaultKernelData( config, this );
-    }
-
-    protected LastCommittedTxIdSetter createLastCommittedTxIdSetter()
-    {
-        return new DefaultLastCommittedTxIdSetter();
     }
 
     protected TxIdGenerator createTxIdGenerator()

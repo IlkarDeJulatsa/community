@@ -24,13 +24,13 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.logging.Logger;
+
 import org.neo4j.graphdb.factory.GraphDatabaseSetting;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.UTF8;
 import org.neo4j.kernel.IdGeneratorFactory;
 import org.neo4j.kernel.IdType;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.core.LastCommittedTxIdSetter;
 import org.neo4j.kernel.impl.storemigration.ConfigMapUpgradeConfiguration;
 import org.neo4j.kernel.impl.storemigration.DatabaseFiles;
 import org.neo4j.kernel.impl.storemigration.StoreMigrator;
@@ -56,16 +56,15 @@ public class StoreFactory
     private final Config config;
     private final IdGeneratorFactory idGeneratorFactory;
     private final FileSystemAbstraction fileSystemAbstraction;
-    private final LastCommittedTxIdSetter lastCommittedTxIdSetter;
     private final StringLogger stringLogger;
     private final TxHook txHook;
 
-    public StoreFactory(Config config, IdGeneratorFactory idGeneratorFactory, FileSystemAbstraction fileSystemAbstraction, LastCommittedTxIdSetter lastCommittedTxIdSetter, StringLogger stringLogger, TxHook txHook)
+    public StoreFactory(Config config, IdGeneratorFactory idGeneratorFactory,
+                        FileSystemAbstraction fileSystemAbstraction, StringLogger stringLogger, TxHook txHook)
     {
         this.config = config;
         this.idGeneratorFactory = idGeneratorFactory;
         this.fileSystemAbstraction = fileSystemAbstraction;
-        this.lastCommittedTxIdSetter = lastCommittedTxIdSetter;
         this.stringLogger = stringLogger;
         this.txHook = txHook;
     }
@@ -85,8 +84,7 @@ public class StoreFactory
 
     NeoStore attemptNewNeoStore( String fileName )
     {
-        return new NeoStore( fileName, config,
-                lastCommittedTxIdSetter, idGeneratorFactory, fileSystemAbstraction, stringLogger, txHook,
+        return new NeoStore( fileName, config, idGeneratorFactory, fileSystemAbstraction, stringLogger, txHook,
                 newRelationshipTypeStore(fileName + ".relationshiptypestore.db"),
                 newPropertyStore(fileName + ".propertystore.db"),
                 newRelationshipStore(fileName + ".relationshipstore.db"),
