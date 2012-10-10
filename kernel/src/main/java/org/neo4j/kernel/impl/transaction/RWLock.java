@@ -19,6 +19,7 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -520,7 +521,7 @@ class RWLock
             type = ResourceType.OTHER;
             id = resource.toString();
         }
-        return new LockInfo( type, id, readCount, writeCount, lockingTxs, waitingTxs );
+        return new LockInfo( type, id, readCount, writeCount, new ArrayList<LockingTransaction>( lockingTxs ), new ArrayList<WaitingThread>( waitingTxs ) );
     }
 
     synchronized boolean acceptVisitorIfWaitedSinceBefore( Visitor<LockInfo> visitor, long waitStart )

@@ -21,7 +21,6 @@ package org.neo4j.kernel.info;
 
 import java.beans.ConstructorProperties;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -33,19 +32,19 @@ public final class LockInfo
     private final int readCount;
     private final int writeCount;
     private final List<WaitingThread> waitingThreads;
-    private final LockingTransaction[] lockingTxs;
+    private final List<LockingTransaction> lockingTransactions;
 
     @ConstructorProperties( { "resourceType", "resourceId", "readCount", "writeCount", "lockingTransactions",
             "waitingThreads" } )
     public LockInfo( ResourceType type, String resourceId, int readCount, int writeCount,
-            Collection<LockingTransaction> locking, Collection<WaitingThread> waiting )
+            List<LockingTransaction> lockingTransactions, List<WaitingThread> waitingThreads )
     {
         this.type = type;
         this.resource = resourceId;
         this.readCount = readCount;
         this.writeCount = writeCount;
-        this.lockingTxs = locking.toArray( new LockingTransaction[locking.size()] );
-        this.waitingThreads = new ArrayList<WaitingThread>( waiting );
+        this.lockingTransactions = new ArrayList<LockingTransaction>( lockingTransactions );
+        this.waitingThreads = new ArrayList<WaitingThread>( waitingThreads );
     }
 
     public LockInfo( ResourceType type, String resourceId, int readCount, int writeCount,
@@ -56,8 +55,8 @@ public final class LockInfo
         this.readCount = readCount;
         this.writeCount = writeCount;
         this.waitingThreads = new ArrayList<WaitingThread>();
-        this.lockingTxs = locking.toArray( new LockingTransaction[locking.size()] );
-        for ( LockingTransaction tx : lockingTxs )
+        this.lockingTransactions = new ArrayList<LockingTransaction>( locking );
+        for ( LockingTransaction tx : lockingTransactions )
         {
             if ( tx instanceof WaitingThread )
             {
@@ -67,7 +66,7 @@ public final class LockInfo
     }
 
     @Override
-    public String toString ( )
+    public String toString()
     {
         StringBuilder builder = new StringBuilder(  );
         builder.append( "Total lock count: readCount=" + this.getReadCount() + " writeCount="
@@ -123,6 +122,6 @@ public final class LockInfo
 
     public List<LockingTransaction> getLockingTransactions()
     {
-        return Collections.unmodifiableList( Arrays.asList( lockingTxs ) );
+        return Collections.unmodifiableList( lockingTransactions );
     }
 }
