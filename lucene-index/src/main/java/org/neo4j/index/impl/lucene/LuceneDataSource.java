@@ -311,6 +311,7 @@ public class LuceneDataSource extends LogBackedXaDataSource
 
             setLogicalLogAtCreationTime( xaContainer.getLogicalLog() );
         }
+        closed = false;
     }
 
     @Override
