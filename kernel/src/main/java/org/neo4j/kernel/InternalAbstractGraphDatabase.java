@@ -276,7 +276,6 @@ public abstract class InternalAbstractGraphDatabase
                 }
             }
         } );
-
     }
 
     protected void doRecovery() throws Throwable
@@ -757,7 +756,7 @@ public abstract class InternalAbstractGraphDatabase
         {
             // TODO IO stuff should be done in lifecycle. Refactor!
             neoDataSource = new NeoStoreXaDataSource( config,
-                    storeFactory, fileSystem, lockManager, lockReleaser, logging.getLogger( Loggers.DATASOURCE ),
+                    storeFactory, lockManager, lockReleaser, logging.getLogger( Loggers.DATASOURCE ),
                     xaFactory, transactionInterceptorProviders, dependencyResolver );
             xaDataSourceManager.registerDataSource( neoDataSource );
 

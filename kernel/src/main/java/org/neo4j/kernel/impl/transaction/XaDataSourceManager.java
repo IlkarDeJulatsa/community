@@ -44,7 +44,9 @@ import org.neo4j.kernel.impl.nioneo.xa.NeoStoreXaDataSource;
 import org.neo4j.kernel.impl.transaction.xaframework.XaDataSource;
 import org.neo4j.kernel.impl.transaction.xaframework.XaResource;
 import org.neo4j.kernel.impl.util.StringLogger;
+import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.Lifecycle;
+import org.neo4j.kernel.lifecycle.LifecycleStatus;
 
 /**
  * All datasources that have been defined in the XA data source configuration
@@ -72,6 +74,7 @@ public class XaDataSourceManager
             new HashMap<String, byte[]>();
     private Iterable<DataSourceRegistrationListener> dsRegistrationListeners = Listeners
             .<DataSourceRegistrationListener>newListeners();
+    private LifeSupport life = new LifeSupport();
 
     private StringLogger msgLog;
 
@@ -82,16 +85,19 @@ public class XaDataSourceManager
 
     public void addDataSourceRegistrationListener( DataSourceRegistrationListener listener )
     {
-        try
+        if ( life.getStatus().equals( LifecycleStatus.STARTED ) )
         {
-            for ( XaDataSource ds : dataSources.values() )
+            try
             {
-                listener.registeredDataSource( ds );
+                for ( XaDataSource ds : dataSources.values() )
+                {
+                    listener.registeredDataSource( ds );
+                }
             }
-        }
-        catch ( Throwable t )
-        {
-            msgLog.logMessage( "Failed when notifying registering listener", t );
+            catch ( Throwable t )
+            {
+                msgLog.logMessage( "Failed when notifying registering listener", t );
+            }
         }
         dsRegistrationListeners = Listeners.addListener( listener, dsRegistrationListeners );
     }
@@ -102,38 +108,59 @@ public class XaDataSourceManager
         dsRegistrationListeners = Listeners.removeListener( dataSourceRegistrationListener, dsRegistrationListeners );
     }
 
-
     @Override
     public void init()
             throws Throwable
     {
+        if (dsRegistrationListeners == null)
+        {
+            dsRegistrationListeners = Listeners
+                    .<DataSourceRegistrationListener>newListeners();
+        }
     }
 
     @Override
     public void start()
             throws Throwable
     {
+        life = new LifeSupport();
+        for ( XaDataSource ds : dataSources.values() )
+        {
+            life.add( ds );
+        }
+        life.start();
+        for ( DataSourceRegistrationListener listener : dsRegistrationListeners )
+        {
+            try
+            {
+                for ( XaDataSource ds : dataSources.values() )
+                {
+                    listener.registeredDataSource( ds );
+                }
+            }
+            catch ( Throwable t )
+            {
+                msgLog.logMessage( "Failed when notifying registering listener", t );
+            }
+        }
     }
 
     @Override
     public void stop()
             throws Throwable
     {
+        life.stop();
     }
 
     @Override
     public void shutdown()
             throws Throwable
     {
+        dsRegistrationListeners = null;
+        life.shutdown();
+        dataSources.clear();
         branchIdMapping.clear();
         sourceIdMapping.clear();
-        Iterator<XaDataSource> itr = dataSources.values().iterator();
-        while ( itr.hasNext() )
-        {
-            XaDataSource dataSource = itr.next();
-            dataSource.close();
-        }
-        dataSources.clear();
     }
 
     /**
@@ -169,14 +196,18 @@ public class XaDataSourceManager
         dataSources.put( dataSource.getName(), dataSource );
         branchIdMapping.put( UTF8.decode( dataSource.getBranchId() ), dataSource );
         sourceIdMapping.put( dataSource.getName(), dataSource.getBranchId() );
-        Listeners.notifyListeners( dsRegistrationListeners, new Listeners.Notification<DataSourceRegistrationListener>()
+        life.add( dataSource );
+        if ( life.getStatus().equals( LifecycleStatus.STARTED ) )
         {
-            @Override
-            public void notify( DataSourceRegistrationListener listener )
+            Listeners.notifyListeners( dsRegistrationListeners, new Listeners.Notification<DataSourceRegistrationListener>()
             {
-                listener.registeredDataSource( dataSource );
-            }
-        } );
+                @Override
+                public void notify( DataSourceRegistrationListener listener )
+                {
+                    listener.registeredDataSource( dataSource );
+                }
+            } );
+        }
     }
 
     /**
@@ -203,7 +234,8 @@ public class XaDataSourceManager
                 listener.unregisteredDataSource( dataSource );
             }
         } );
-        dataSource.close();
+        life.remove( dataSource );
+        // No need for shutdown, removing does that
     }
 
     synchronized byte[] getBranchId( XAResource xaResource )

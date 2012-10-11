@@ -69,6 +69,22 @@ public class StoreFactory
         this.txHook = txHook;
     }
 
+    public boolean ensureStoreExists() throws IOException
+    {
+        boolean readOnly = config.get( GraphDatabaseSettings.read_only );
+
+        String store = config.get( GraphDatabaseSettings.neo_store );
+        boolean created = false;
+        if ( !readOnly && !fileSystemAbstraction.fileExists( store ))
+        {
+            stringLogger.logMessage( "Creating new db @ " + store, true );
+            fileSystemAbstraction.autoCreatePath( store );
+            createNeoStore( store ).close();
+            created = true;
+        }
+        return created;
+    }
+
     public NeoStore newNeoStore(String fileName)
     {
         try

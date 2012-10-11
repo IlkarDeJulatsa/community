@@ -48,7 +48,6 @@ import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.core.LockReleaser;
 import org.neo4j.kernel.impl.core.PropertyIndex;
 import org.neo4j.kernel.impl.index.IndexStore;
-import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
 import org.neo4j.kernel.impl.nioneo.store.NeoStore;
 import org.neo4j.kernel.impl.nioneo.store.PropertyStore;
 import org.neo4j.kernel.impl.nioneo.store.Store;
@@ -84,6 +83,10 @@ import org.neo4j.kernel.info.DiagnosticsPhase;
  */
 public class NeoStoreXaDataSource extends LogBackedXaDataSource
 {
+    private StoreFactory storeFactory;
+    private DependencyResolver dependencyResolver;
+    private XaFactory xaFactory;
+
     public static abstract class Configuration
         extends LogBackedXaDataSource.Configuration
     {
@@ -99,15 +102,15 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
     private static Logger logger = Logger.getLogger(
         NeoStoreXaDataSource.class.getName() );
 
-    private final Config config;
-    private final NeoStore neoStore;
-    private final XaContainer xaContainer;
-    private final ArrayMap<Class<?>,Store> idGenerators;
+    private Config config;
+    private NeoStore neoStore;
+    private XaContainer xaContainer;
+    private ArrayMap<Class<?>,Store> idGenerators;
 
     private final LockManager lockManager;
     private final LockReleaser lockReleaser;
-    private final String storeDir;
-    private final boolean readOnly;
+    private String storeDir;
+    private boolean readOnly;
 
     private final TransactionInterceptorProviders providers;
 
@@ -197,27 +200,35 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
      * @throws IOException
      *             If unable to create data source
      */
-    public NeoStoreXaDataSource( Config conf, StoreFactory sf, FileSystemAbstraction fileSystemAbstraction,
-                                 LockManager lockManager, LockReleaser lockReleaser, StringLogger stringLogger,
-                                 XaFactory xaFactory, TransactionInterceptorProviders providers,
-                                 DependencyResolver dependencyResolver) throws IOException
+    public NeoStoreXaDataSource( Config config, StoreFactory sf, LockManager lockManager, LockReleaser lockReleaser,
+                                 StringLogger stringLogger, XaFactory xaFactory,
+                                 TransactionInterceptorProviders providers, DependencyResolver dependencyResolver)
+            throws IOException
     {
         super( BRANCH_ID, Config.DEFAULT_DATA_SOURCE_NAME );
-        config = conf;
+        this.config = config;
         this.providers = providers;
-
-        readOnly = conf.getBoolean( Configuration.read_only );
         this.lockManager = lockManager;
         this.lockReleaser = lockReleaser;
         msgLog = stringLogger;
-        storeDir = conf.get( Configuration.store_dir );
-        String store = conf.get( Configuration.neo_store );
-        if ( !readOnly && !fileSystemAbstraction.fileExists( store ))
-        {
-            msgLog.logMessage( "Creating new db @ " + store, true );
-            autoCreatePath( store );
-            sf.createNeoStore(store).close();
-        }
+        this.storeFactory = sf;
+        this.dependencyResolver = dependencyResolver;
+        this.xaFactory = xaFactory;
+    }
+
+    @Override
+    public void init()
+    {
+    }
+
+    @Override
+    public void start() throws IOException
+    {
+        readOnly = config.get( Configuration.read_only );
+
+        storeDir = config.get( Configuration.store_dir );
+        String store = config.get( Configuration.neo_store );
+        storeFactory.ensureStoreExists();
 
         final TransactionFactory tf;
         if ( providers.shouldInterceptCommitting() )
@@ -228,9 +239,9 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         {
             tf = new TransactionFactory();
         }
-        neoStore = sf.newNeoStore(store);
-        
-        xaContainer = xaFactory.newXaContainer(this, conf.get( Configuration.logical_log ), new CommandFactory( neoStore ), tf, providers  );
+        neoStore = storeFactory.newNeoStore( store );
+
+        xaContainer = xaFactory.newXaContainer(this, config.get( Configuration.logical_log ), new CommandFactory( neoStore ), tf, providers  );
 
         try
         {
@@ -281,30 +292,15 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         }
     }
 
-    private void autoCreatePath( String store ) throws IOException
-    {
-        String fileSeparator = System.getProperty( "file.separator" );
-        int index = store.lastIndexOf( fileSeparator );
-        String dirs = store.substring( 0, index );
-        File directories = new File( dirs );
-        if ( !directories.exists() )
-        {
-            if ( !directories.mkdirs() )
-            {
-                throw new IOException( "Unable to create directory path["
-                    + dirs + "] for Neo4j store." );
-            }
-        }
-    }
-
     public NeoStore getNeoStore()
     {
         return neoStore;
     }
 
     @Override
-    public void close()
+    public void stop()
     {
+        super.stop();
         if ( !readOnly )
         {
             neoStore.flushAll();
@@ -319,6 +315,10 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         logger.fine( "NeoStore closed" );
         msgLog.logMessage( "NeoStore closed", true );
     }
+
+    @Override
+    public void shutdown()
+    {}
 
     public StoreId getStoreId()
     {

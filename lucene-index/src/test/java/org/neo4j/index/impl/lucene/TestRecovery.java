@@ -144,6 +144,7 @@ public class TestRecovery
         Config config = new Config( new ConfigurationDefaults(GraphDatabaseSettings.class ).apply(params ));
         LuceneDataSource ds = new LuceneDataSource( config, new IndexStore( getDbPath(), fileSystem ), fileSystem,
                                                    new XaFactory( config, TxIdGenerator.DEFAULT, new PlaceboTm(), new DefaultLogBufferFactory(), fileSystemAbstraction, StringLogger.DEV_NULL, RecoveryVerifier.ALWAYS_VALID, LogPruneStrategies.NO_PRUNING ));
-        ds.close();
+        ds.start();
+        ds.stop();
     }
 }

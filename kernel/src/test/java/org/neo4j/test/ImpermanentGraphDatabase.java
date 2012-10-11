@@ -54,7 +54,6 @@ public class ImpermanentGraphDatabase extends EmbeddedGraphDatabase
 {
     private static final File PATH = new File( "target/test-data/impermanent-db" );
     private static final AtomicInteger ID = new AtomicInteger();
-    private EphemeralFileSystemAbstraction fileSystemAbstraction;
 
     static
     {
@@ -85,7 +84,7 @@ public class ImpermanentGraphDatabase extends EmbeddedGraphDatabase
     @Override
     protected FileSystemAbstraction createFileSystemAbstraction()
     {
-        return fileSystemAbstraction = new EphemeralFileSystemAbstraction();
+        return new EphemeralFileSystemAbstraction();
     }
 
     @Override

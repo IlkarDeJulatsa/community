@@ -270,8 +270,17 @@ public class TestXaFramework extends AbstractNeo4jTestCase
             }
         }
 
+        public void init()
+        {
+        }
+
         @Override
-        public void close()
+        public void start()
+        {
+        }
+
+        @Override
+        public void stop()
         {
             xaContainer.close();
             // cleanup dummy resource log
@@ -288,6 +297,12 @@ public class TestXaFramework extends AbstractNeo4jTestCase
                 files[i].delete();
             }
         }
+
+        @Override
+        public void shutdown()
+        {
+        }
+
 
         @Override
         public XaConnection getXaConnection()

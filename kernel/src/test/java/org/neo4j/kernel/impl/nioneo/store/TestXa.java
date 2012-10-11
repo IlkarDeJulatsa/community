@@ -51,9 +51,9 @@ import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.Pair;
 import org.neo4j.helpers.collection.MapUtil;
-import org.neo4j.kernel.InternalAbstractGraphDatabase;
 import org.neo4j.kernel.DefaultFileSystemAbstraction;
 import org.neo4j.kernel.DefaultIdGeneratorFactory;
+import org.neo4j.kernel.InternalAbstractGraphDatabase;
 import org.neo4j.kernel.TransactionInterceptorProviders;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ConfigurationDefaults;
@@ -147,7 +147,7 @@ public class TestXa extends AbstractNeo4jTestCase
     @After
     public void tearDownNeoStore()
     {
-        ds.close();
+        ds.stop();
         log.setLevel( level );
         log = Logger
                 .getLogger( "org.neo4j.kernel.impl.transaction.xaframework.XaLogicalLog/"
@@ -414,7 +414,7 @@ public class TestXa extends AbstractNeo4jTestCase
         xaRes.commit( xid, true );
         copyLogicalLog( path() );
         xaCon.clearAllTransactions();
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
         ds = newNeoStore();
@@ -451,7 +451,8 @@ public class TestXa extends AbstractNeo4jTestCase
             }
         }
 
-        return new NeoStoreXaDataSource( config, sf, fileSystem, lockManager, lockReleaser, StringLogger.DEV_NULL,
+        NeoStoreXaDataSource neoStoreXaDataSource = new NeoStoreXaDataSource( config, sf, lockManager, lockReleaser,
+                StringLogger.DEV_NULL,
                 new XaFactory( config, TxIdGenerator.DEFAULT, txManager,
                         logBufferFactory, fileSystem, StringLogger.DEV_NULL, RecoveryVerifier.ALWAYS_VALID,
                         LogPruneStrategies.NO_PRUNING ),
@@ -465,6 +466,8 @@ public class TestXa extends AbstractNeo4jTestCase
                                 return (T) config;
                             }
                         } ), null );
+        neoStoreXaDataSource.start();
+        return neoStoreXaDataSource;
     }
 
     @Test
@@ -494,7 +497,7 @@ public class TestXa extends AbstractNeo4jTestCase
         ds.rotateLogicalLog();
         copyLogicalLog( path() );
         xaCon.clearAllTransactions();
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
         ds = newNeoStore();
@@ -527,7 +530,7 @@ public class TestXa extends AbstractNeo4jTestCase
         ds.rotateLogicalLog();
         copyLogicalLog( path() );
         xaCon.clearAllTransactions();
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
 
@@ -552,7 +555,7 @@ public class TestXa extends AbstractNeo4jTestCase
         ds.rotateLogicalLog();
         copyLogicalLog( path() );
         xaCon.clearAllTransactions();
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
         ds = newNeoStore();
@@ -587,7 +590,7 @@ public class TestXa extends AbstractNeo4jTestCase
         ds.rotateLogicalLog();
         copyLogicalLog( path() );
         xaCon.clearAllTransactions();
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
 
@@ -607,7 +610,7 @@ public class TestXa extends AbstractNeo4jTestCase
         ds.rotateLogicalLog();
         copyLogicalLog( path() );
         xaCon.clearAllTransactions();
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
 
@@ -626,7 +629,7 @@ public class TestXa extends AbstractNeo4jTestCase
         xaRes.end( xid, XAResource.TMSUCCESS );
         xaRes.prepare( xid );
         xaCon.clearAllTransactions();
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
     }
@@ -651,7 +654,7 @@ public class TestXa extends AbstractNeo4jTestCase
         ds.rotateLogicalLog();
         copyLogicalLog( path() );
         xaCon.clearAllTransactions();
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
 
@@ -670,7 +673,7 @@ public class TestXa extends AbstractNeo4jTestCase
         ds.rotateLogicalLog();
         copyLogicalLog( path() );
         xaCon.clearAllTransactions();
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
 
@@ -713,7 +716,7 @@ public class TestXa extends AbstractNeo4jTestCase
         xaRes.end( xid, XAResource.TMSUCCESS );
         xaCon.clearAllTransactions();
         copyLogicalLog( path() );
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
         ds = newNeoStore();
@@ -735,7 +738,7 @@ public class TestXa extends AbstractNeo4jTestCase
         xaCon.clearAllTransactions();
         copyLogicalLog( path() );
         xaCon.clearAllTransactions();
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
         truncateLogicalLog( 94 );
@@ -759,7 +762,7 @@ public class TestXa extends AbstractNeo4jTestCase
         xaCon.clearAllTransactions();
         copyLogicalLog( path() );
         xaCon.clearAllTransactions();
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
         truncateLogicalLog( 94 );
@@ -787,7 +790,7 @@ public class TestXa extends AbstractNeo4jTestCase
         xaRes.prepare( xid );
         copyLogicalLog( path() );
         xaCon.clearAllTransactions();
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
         truncateLogicalLog( 243 );
@@ -815,7 +818,7 @@ public class TestXa extends AbstractNeo4jTestCase
         xaRes.prepare( xid );
         xaRes.commit( xid, false );
         copyLogicalLog( path() );
-        ds.close();
+        ds.stop();
         deleteLogicalLogIfExist();
         renameCopiedLogicalLog( path() );
         truncateLogicalLog( 264 );

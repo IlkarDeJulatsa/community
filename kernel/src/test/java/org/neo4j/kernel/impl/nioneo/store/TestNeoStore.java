@@ -167,7 +167,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
             InternalAbstractGraphDatabase.Configuration.logical_log.name(), file("nioneo_logical.log"))));
         StoreFactory sf = new StoreFactory(config, new DefaultIdGeneratorFactory(), fileSystem, StringLogger.DEV_NULL, null);
 
-        ds = new NeoStoreXaDataSource(config, sf, fileSystem, lockManager, lockReleaser, StringLogger.DEV_NULL,
+        ds = new NeoStoreXaDataSource(config, sf, lockManager, lockReleaser, StringLogger.DEV_NULL,
                 new XaFactory(config, TxIdGenerator.DEFAULT, new PlaceboTm(),
                         new DefaultLogBufferFactory(), fileSystem, StringLogger.DEV_NULL, RecoveryVerifier.ALWAYS_VALID,
                         LogPruneStrategies.NO_PRUNING ), new TransactionInterceptorProviders( Collections.<TransactionInterceptorProvider>emptyList(), new DependencyResolver()
@@ -179,6 +179,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
                 return (T) config;
             }
         } ), null );
+        ds.start();
 
         xaCon = ds.getXaConnection();
         pStore = xaCon.getPropertyStore();
@@ -317,7 +318,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
         PropertyData r2prop3 = xaCon.getWriteTransaction().relAddProperty(
                 rel2, index( "prop3" ), false );
         commitTx();
-        ds.close();
+        ds.stop();
 
         initializeStores();
         startTx();
@@ -333,7 +334,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
         // validate reltypes
         validateRelTypes( relType1, relType2 );
         commitTx();
-        ds.close();
+        ds.stop();
 
         initializeStores();
         startTx();
@@ -344,7 +345,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
         deleteNode1( node1, n1prop1, n1prop2, n1prop3 );
         deleteNode2( node2, n2prop1, n2prop2, n2prop3 );
         commitTx();
-        ds.close();
+        ds.stop();
 
         initializeStores();
         startTx();
@@ -379,7 +380,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
             xaCon.getWriteTransaction().nodeDelete( nodeIds[i] );
         }
         commitTx();
-        ds.close();
+        ds.stop();
     }
 
     private AtomicLong getPosition( NeoStoreXaConnection xaCon, long node )
@@ -923,7 +924,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
             xaCon.getWriteTransaction().nodeDelete( nodeIds[i] );
         }
         commitTx();
-        ds.close();
+        ds.stop();
     }
 
     @Test
@@ -961,7 +962,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
             xaCon.getWriteTransaction().nodeDelete( nodeIds[i] );
         }
         commitTx();
-        ds.close();
+        ds.stop();
     }
 
     @Test
@@ -1012,7 +1013,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
         // xaCon.getWriteTransaction().nodeDelete( nodeIds[4] );
         // xaCon.getWriteTransaction().nodeDelete( nodeIds[0] );
         commitTx();
-        ds.close();
+        ds.stop();
     }
 
     @Test
@@ -1027,7 +1028,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
                 nodeId, index( "nisse" ),
             new Integer( 10 ) );
         commitTx();
-        ds.close();
+        ds.stop();
         initializeStores();
         startTx();
         xaCon.getWriteTransaction().nodeChangeProperty( nodeId, prop,
@@ -1035,7 +1036,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
         xaCon.getWriteTransaction().nodeRemoveProperty( nodeId, prop );
         xaCon.getWriteTransaction().nodeDelete( nodeId );
         commitTx();
-        ds.close();
+        ds.stop();
     }
 
     @Test
@@ -1055,7 +1056,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
                 pStore.getStringBlockSize() );
         assertEquals( 302 + AbstractDynamicStore.BLOCK_HEADER_SIZE,
                 pStore.getArrayBlockSize() );
-        ds.close();
+        ds.stop();
     }
 
     @Test
