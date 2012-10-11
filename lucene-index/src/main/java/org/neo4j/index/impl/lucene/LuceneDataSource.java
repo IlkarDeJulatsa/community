@@ -296,7 +296,7 @@ public class LuceneDataSource extends LogBackedXaDataSource
         };
         xaContainer = xaFactory.newXaContainer(this, this.baseStorePath + File.separator + "lucene.log", cf, tf,
                 new TransactionInterceptorProviders( new HashSet<TransactionInterceptorProvider>(), dummy ));
-
+        closed = false;
         if ( !isReadOnly )
         {
             try
@@ -311,7 +311,6 @@ public class LuceneDataSource extends LogBackedXaDataSource
 
             setLogicalLogAtCreationTime( xaContainer.getLogicalLog() );
         }
-        closed = false;
     }
 
     @Override
