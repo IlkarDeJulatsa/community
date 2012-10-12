@@ -108,7 +108,7 @@ public class TxLog
     /**
      * Closes the file representing the transaction log.
      */
-    public void close() throws IOException
+    public synchronized void close() throws IOException
     {
         logBuffer.force();
         logBuffer.getFileChannel().close();

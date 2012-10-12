@@ -306,6 +306,7 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
             neoStore.flushAll();
         }
         xaContainer.close();
+        xaContainer = null;
         if ( logApplied )
         {
             neoStore.rebuildIdGenerators();
