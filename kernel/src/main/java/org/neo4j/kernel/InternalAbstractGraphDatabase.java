@@ -20,7 +20,6 @@
 
 package org.neo4j.kernel;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,6 +74,7 @@ import org.neo4j.kernel.impl.core.RelationshipTypeHolder;
 import org.neo4j.kernel.impl.core.TransactionEventsSyncHook;
 import org.neo4j.kernel.impl.core.TxEventSyncHookFactory;
 import org.neo4j.kernel.impl.index.IndexStore;
+import org.neo4j.kernel.impl.nioneo.store.DefaultWindowPoolFactory;
 import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
 import org.neo4j.kernel.impl.nioneo.store.StoreFactory;
 import org.neo4j.kernel.impl.nioneo.store.StoreId;
@@ -212,7 +212,7 @@ public abstract class InternalAbstractGraphDatabase
         // SPI - provided services
         this.indexProviders = indexProviders;
         this.cacheProviders = mapCacheProviders( cacheProviders );
-        config = new Config( params, getSettingsClasses( kernelExtensions ) );
+        config = new Config( params, getSettingsClasses( kernelExtensions, cacheProviders ) );
         this.kernelExtensions = new KernelExtensions( kernelExtensions, config, dependencyResolver );
         this.transactionInterceptorProviders = new TransactionInterceptorProviders( transactionInterceptorProviders,
                 dependencyResolver );
@@ -615,7 +615,8 @@ public abstract class InternalAbstractGraphDatabase
 
     protected StoreFactory createStoreFactory()
     {
-        return new StoreFactory( config, idGeneratorFactory, fileSystem, logging.getLogger( Loggers.NEOSTORE ), txHook );
+        return new StoreFactory(config, idGeneratorFactory, new DefaultWindowPoolFactory(), fileSystem,
+                logging.getLogger( Loggers.NEOSTORE ), txHook );
     }
 
     protected RecoveryVerifier createRecoveryVerifier()
@@ -1004,7 +1005,8 @@ public abstract class InternalAbstractGraphDatabase
         return kernelPanicEventGenerator;
     }
 
-    private Iterable<Class<?>> getSettingsClasses( Iterable<KernelExtensionFactory<?>> kernelExtensions )
+    private Iterable<Class<?>> getSettingsClasses( Iterable<KernelExtensionFactory<?>> kernelExtensions, Iterable
+            <CacheProvider> cacheProviders )
     {
         List<Class<?>> settingsClasses = new ArrayList<Class<?>>();
         settingsClasses.add( GraphDatabaseSettings.class );
@@ -1018,20 +1020,16 @@ public abstract class InternalAbstractGraphDatabase
             }
         }
 
-        return settingsClasses;
-    }
+        for ( CacheProvider cacheProvider : cacheProviders )
+        {
+            if ( cacheProvider.getSettingsClass() != null )
+            {
+                settingsClasses.add( cacheProvider.getSettingsClass() );
+            }
+        }
 
-    private String canonicalize( String path )
-    {
-        try
-        {
-            return new File( path ).getCanonicalFile().getAbsolutePath();
-        }
-        catch ( IOException e )
-        {
-            return new File( path ).getAbsolutePath();
-        }
-    }
+		return settingsClasses;
+	}
 
     @Override
     public boolean equals( Object o )

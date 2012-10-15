@@ -35,6 +35,7 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.PathExpander;
 import org.neo4j.graphdb.RelationshipExpander;
 import org.neo4j.graphdb.traversal.Evaluators;
+import org.neo4j.graphdb.traversal.InitialBranchState;
 import org.neo4j.graphdb.traversal.TraversalBranch;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 import org.neo4j.graphdb.traversal.TraversalMetadata;
@@ -51,15 +52,22 @@ public class Dijkstra implements PathFinder<WeightedPath>
     private static final TraversalDescription TRAVERSAL = traversal().uniqueness( Uniqueness.NONE );
 
     private final PathExpander expander;
+    private final InitialBranchState stateFactory;
     private final CostEvaluator<Double> costEvaluator;
     private Traverser lastTraverser;
 
     public Dijkstra( PathExpander expander, CostEvaluator<Double> costEvaluator )
     {
-        this.expander = expander;
-        this.costEvaluator = costEvaluator;
+        this( expander, InitialBranchState.NO_STATE, costEvaluator );
     }
 
+    public Dijkstra( PathExpander expander, InitialBranchState stateFactory, CostEvaluator<Double> costEvaluator )
+    {
+        this.expander = expander;
+        this.costEvaluator = costEvaluator;
+        this.stateFactory = stateFactory;
+    }
+    
     public Dijkstra( RelationshipExpander expander, CostEvaluator<Double> costEvaluator )
     {
         this( toPathExpander( expander ), costEvaluator );
@@ -67,8 +75,8 @@ public class Dijkstra implements PathFinder<WeightedPath>
     
     public Iterable<WeightedPath> findAllPaths( Node start, final Node end )
     {
-        lastTraverser = TRAVERSAL.expand( expander ).order(
-                new SelectorFactory( costEvaluator ) ).evaluator( Evaluators.includeWhereEndNodeIs( end ) ).traverse( start );
+        lastTraverser = TRAVERSAL.expand( expander, stateFactory ).order( new SelectorFactory( costEvaluator ) )
+                .evaluator( Evaluators.includeWhereEndNodeIs( end ) ).traverse( start );
         
         // Here's how the bidirectional equivalent would look
 //        lastTraverser = Traversal.bidirectionalTraversal()

@@ -31,10 +31,10 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.neo4j.helpers.Pair;
+import org.neo4j.kernel.impl.nioneo.store.windowpool.WindowPool;
+import org.neo4j.kernel.impl.util.StringLogger;
 
 /**
  * Manages {@link PersistenceWindow persistence windows} for a store. Each store
@@ -44,7 +44,7 @@ import org.neo4j.helpers.Pair;
  * that the most frequently used records/blocks (be it for read or write
  * operations) are encapsulated by a memory mapped persistence window.
  */
-public class PersistenceWindowPool
+public class PersistenceWindowPool implements WindowPool
 {
     private static final int MAX_BRICK_COUNT = 100000;
 
@@ -61,7 +61,6 @@ public class PersistenceWindowPool
     private BrickElement brickArray[] = new BrickElement[0];
     private int brickMiss = 0;
 
-    private static Logger log = Logger.getLogger( PersistenceWindowPool.class.getName() );
     private static final int REFRESH_BRICK_COUNT = 50000;
     private final FileChannel.MapMode mapMode;
 
@@ -77,7 +76,8 @@ public class PersistenceWindowPool
     private final AtomicInteger avertedRefreshes = new AtomicInteger();
     private final AtomicLong refreshTime = new AtomicLong();
     private final AtomicInteger refreshes = new AtomicInteger();
-    
+    private StringLogger log;
+
     /**
      * Create new pool for a store.
      *
@@ -94,7 +94,7 @@ public class PersistenceWindowPool
      */
     public PersistenceWindowPool( String storeName, int blockSize,
         FileChannel fileChannel, long mappedMem,
-        boolean useMemoryMappedBuffers, boolean readOnly )
+        boolean useMemoryMappedBuffers, boolean readOnly, StringLogger log )
     {
         this.storeName = storeName;
         this.blockSize = blockSize;
@@ -103,6 +103,7 @@ public class PersistenceWindowPool
         this.useMemoryMapped = useMemoryMappedBuffers;
         this.readOnly = readOnly;
         this.mapMode = readOnly ? MapMode.READ_ONLY : MapMode.READ_WRITE;
+        this.log = log;
         setupBricks();
         dumpStatus();
     }
@@ -119,6 +120,7 @@ public class PersistenceWindowPool
      * @throws IOException
      *             If unable to acquire the window
      */
+    @Override
     public PersistenceWindow acquire( long position, OperationType operationType )
     {
         LockableWindow window = null;
@@ -131,23 +133,21 @@ public class PersistenceWindowPool
             if ( brickSize > 0 )
             {
                 int brickIndex = positionToBrickIndex( position );
-                if ( brickIndex < brickArray.length )
-                {
-                    BrickElement brick = brickArray[brickIndex];
-                    window = brick.getWindow();
-                    if ( window != null && !window.markAsInUse() )
-                        // Oops, a refreshBricks call from another thread just closed
-                        // this window, treat it as if we hadn't even found it.
-                        window = null;
-                    
-                    // assert window == null || window.encapsulates( position );
-                    brick.setHit();
-                }
-                else
+                if ( brickIndex >= brickArray.length )
                 {
                     expandBricks( brickIndex + 1 );
-                    window = brickArray[brickIndex].getWindow();
                 }
+                BrickElement brick = brickArray[brickIndex];
+                window = brick.getWindow();
+                if ( window != null && !window.markAsInUse() )
+                {
+                    // Oops, a refreshBricks call from another thread just closed
+                    // this window, treat it as if we hadn't even found it.
+                    window = null;
+                }
+
+                // assert window == null || window.encapsulates( position );
+                brick.setHit();
             }
             if ( window == null )
             {
@@ -208,8 +208,8 @@ public class PersistenceWindowPool
     
     void dumpStatistics()
     {
-        log.finest( storeName + " hit=" + hit + " miss=" + miss + " switches="
-            + switches + " ooe=" + ooe );
+        log.logMessage( storeName + " hit=" + hit + " miss=" + miss + " switches="
+                        + switches + " ooe=" + ooe );
     }
 
     /**
@@ -221,6 +221,7 @@ public class PersistenceWindowPool
      * @throws IOException
      *             If unable to release window
      */
+    @Override
     public void release( PersistenceWindow window )
     {
         if ( window instanceof PersistenceRow )
@@ -271,7 +272,8 @@ public class PersistenceWindowPool
         }
     }
 
-    synchronized void close()
+    @Override
+    public synchronized void close()
     {
         flushAll();
         for ( BrickElement element : brickArray )
@@ -287,7 +289,8 @@ public class PersistenceWindowPool
         dumpStatistics();
     }
 
-    void flushAll()
+    @Override
+    public void flushAll()
     {
         if ( readOnly )
             return;
@@ -331,13 +334,14 @@ public class PersistenceWindowPool
         {
             return;
         }
+
         // If we can't fit even 10 blocks in available memory don't even try
         // to use available memory.
-        if ( availableMem > 0 && availableMem < blockSize * 10l )
+        if(availableMem > 0 && availableMem < blockSize * 10l )
         {
             logWarn( "Unable to use " + availableMem
-                + "b as memory mapped windows, need at least " + blockSize * 10
-                + "b (block size * 10)" );
+                    + "b as memory mapped windows, need at least " + blockSize * 10
+                    + "b (block size * 10)" );
             logWarn( "Memory mapped windows have been turned off" );
             availableMem = 0;
             brickCount = 0;
@@ -630,9 +634,9 @@ public class PersistenceWindowPool
     {
         try
         {
-            log.fine( "[" + storeName + "] brickCount=" + brickCount
-                + " brickSize=" + brickSize + "b mappedMem=" + availableMem
-                + "b (storeSize=" + fileChannel.size() + "b)" );
+            log.logMessage( "[" + storeName + "] brickCount=" + brickCount
+                            + " brickSize=" + brickSize + "b mappedMem=" + availableMem
+                            + "b (storeSize=" + fileChannel.size() + "b)" );
         }
         catch ( IOException e )
         {
@@ -643,15 +647,16 @@ public class PersistenceWindowPool
 
     private void logWarn( String logMessage )
     {
-        log.warning( "[" + storeName + "] " + logMessage );
+        log.logMessage( "[" + storeName + "] " + logMessage );
     }
 
     private void logWarn( String logMessage, Throwable cause )
     {
-        log.log( Level.WARNING, "[" + storeName + "] " + logMessage, cause );
+        log.logMessage( "[" + storeName + "] " + logMessage, cause );
     }
 
-    WindowPoolStats getStats()
+    @Override
+    public WindowPoolStats getStats()
     {
         int avgRefreshTime = refreshes.get() == 0 ? 0 : (int)(refreshTime.get()/refreshes.get());
         return new WindowPoolStats( storeName, availableMem, memUsed, brickCount,

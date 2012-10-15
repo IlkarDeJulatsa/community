@@ -34,19 +34,35 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.regex.Pattern;
 
+import org.neo4j.graphdb.config.Setting;
 import org.neo4j.helpers.TimeUtil;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.util.FileUtils;
 
 /**
- * Setting types for Neo4j. Actual settings are in GraphDatabaseSettings
+ * Setting types for Neo4j. Actual settings are in GraphDatabaseSettings.
+ *
+ * This is a usage-only class, backwards compatibility is retained for using implementations
+ * of it, but not for implementing it.
+ *
+ * This is deprecated, please use {@link org.neo4j.graphdb.config.Setting} instead.
  */
-public abstract class GraphDatabaseSetting<T>
+// Deprecated because we want to make this internal. Users should use Setting<T> instead.
+@Deprecated
+public abstract class GraphDatabaseSetting<T> implements Setting
 {
     public static final String TRUE = "true";
     public static final String FALSE = "false";
 
     public static final String ANY = ".+";
+
+    // Deprecated because this is to be removed
+    @Deprecated
+    public static final String SIZE = "\\d+[kmgKMG]";
+
+    // Deprecated because this is to be removed
+    @Deprecated
+    public static final String DURATION = "\\d+(ms|s|m)";
 
     public interface DefaultValue
     {
@@ -57,6 +73,10 @@ public abstract class GraphDatabaseSetting<T>
     // Implementations of GraphDatabaseSetting
     //
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class StringSetting
             extends GraphDatabaseSetting<String>
     {
@@ -94,6 +114,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static abstract class NumberSetting<T extends Number>
             extends GraphDatabaseSetting<T>
     {
@@ -138,6 +162,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class IntegerSetting
             extends NumberSetting<Integer>
     {
@@ -179,6 +207,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class LongSetting
             extends NumberSetting<Long>
     {
@@ -220,6 +252,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class FloatSetting
             extends NumberSetting<Float>
     {
@@ -261,6 +297,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class DoubleSetting
             extends NumberSetting<Double>
     {
@@ -302,6 +342,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class PortSetting
             extends IntegerSetting
     {
@@ -375,6 +419,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class HostnamePortSetting
             extends StringSetting
     {
@@ -484,6 +532,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class TimeSpanSetting extends NumberSetting<Long>
     {
         // Regular expression that matches a duration e.g. 10ms or 5s
@@ -522,6 +574,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static abstract class BaseOptionsSetting<ST>
             extends GraphDatabaseSetting<ST>
     {
@@ -555,6 +611,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class OptionsSetting extends BaseOptionsSetting<String>
     {
 
@@ -571,6 +631,10 @@ public abstract class GraphDatabaseSetting<T>
 
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class EnumerableSetting<ET extends Enum<ET>> extends BaseOptionsSetting<ET>
     {
 
@@ -601,6 +665,10 @@ public abstract class GraphDatabaseSetting<T>
 
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class BooleanSetting
             extends BaseOptionsSetting<Boolean>
     {
@@ -616,6 +684,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class AbstractPathSetting
             extends StringSetting
     {
@@ -707,6 +779,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class FileSetting
             extends AbstractPathSetting
     {
@@ -755,6 +831,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class DirectorySetting
             extends AbstractPathSetting
     {
@@ -803,6 +883,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class NumberOfBytesSetting
             extends GraphDatabaseSetting<Long>
     {
@@ -853,6 +937,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class IntegerRangeNumberOfBytesSetting extends GraphDatabaseSetting<Integer>
     {
         private final GraphDatabaseSetting<Long> fullRange;
@@ -893,6 +981,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class ListSetting<T>
             extends GraphDatabaseSetting<List<T>>
     {
@@ -945,7 +1037,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
-
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     public static class URISetting extends GraphDatabaseSetting<URI>
     {
         private boolean normalize;
@@ -1072,6 +1167,10 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    /**
+     * This is deprecated, because it is going to be moved out of the public API. Please use {@link Setting} instead.
+     */
+    @Deprecated
     protected IllegalArgumentException illegalValue( Locale locale, String value, Object... args )
             throws IllegalArgumentException
     {

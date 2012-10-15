@@ -31,6 +31,7 @@ import org.neo4j.helpers.UTF8;
 import org.neo4j.kernel.IdGeneratorFactory;
 import org.neo4j.kernel.IdType;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.nioneo.store.windowpool.WindowPoolFactory;
 import org.neo4j.kernel.impl.storemigration.ConfigMapUpgradeConfiguration;
 import org.neo4j.kernel.impl.storemigration.DatabaseFiles;
 import org.neo4j.kernel.impl.storemigration.StoreMigrator;
@@ -55,15 +56,17 @@ public class StoreFactory
 
     private final Config config;
     private final IdGeneratorFactory idGeneratorFactory;
+    private final WindowPoolFactory windowPoolFactory;
     private final FileSystemAbstraction fileSystemAbstraction;
     private final StringLogger stringLogger;
     private final TxHook txHook;
 
-    public StoreFactory(Config config, IdGeneratorFactory idGeneratorFactory,
-                        FileSystemAbstraction fileSystemAbstraction, StringLogger stringLogger, TxHook txHook)
+    public StoreFactory( Config config, IdGeneratorFactory idGeneratorFactory, WindowPoolFactory windowPoolFactory,
+                         FileSystemAbstraction fileSystemAbstraction, StringLogger stringLogger, TxHook txHook )
     {
         this.config = config;
         this.idGeneratorFactory = idGeneratorFactory;
+        this.windowPoolFactory = windowPoolFactory;
         this.fileSystemAbstraction = fileSystemAbstraction;
         this.stringLogger = stringLogger;
         this.txHook = txHook;
@@ -100,7 +103,8 @@ public class StoreFactory
 
     NeoStore attemptNewNeoStore( String fileName )
     {
-        return new NeoStore( fileName, config, idGeneratorFactory, fileSystemAbstraction, stringLogger, txHook,
+        return new NeoStore( fileName, config, idGeneratorFactory, windowPoolFactory, fileSystemAbstraction,
+                stringLogger, txHook,
                 newRelationshipTypeStore(fileName + ".relationshiptypestore.db"),
                 newPropertyStore(fileName + ".propertystore.db"),
                 newRelationshipStore(fileName + ".relationshipstore.db"),
@@ -116,13 +120,15 @@ public class StoreFactory
 
     private DynamicStringStore newDynamicStringStore(String s, IdType nameIdType)
     {
-        return new DynamicStringStore( s, config, nameIdType, idGeneratorFactory, fileSystemAbstraction, stringLogger);
+        return new DynamicStringStore( s, config, nameIdType, idGeneratorFactory, windowPoolFactory,
+                fileSystemAbstraction, stringLogger);
     }
 
     private RelationshipTypeStore newRelationshipTypeStore(String s)
     {
         DynamicStringStore nameStore = newDynamicStringStore( s + ".names", IdType.RELATIONSHIP_TYPE_BLOCK );
-        return new RelationshipTypeStore( s, config, idGeneratorFactory, fileSystemAbstraction, stringLogger, nameStore );
+        return new RelationshipTypeStore( s, config, idGeneratorFactory, windowPoolFactory,
+                fileSystemAbstraction, stringLogger, nameStore );
     }
 
     private PropertyStore newPropertyStore(String s)
@@ -130,29 +136,32 @@ public class StoreFactory
         DynamicStringStore stringPropertyStore = newDynamicStringStore(s + ".strings", IdType.STRING_BLOCK);
         PropertyIndexStore propertyIndexStore = newPropertyIndexStore(s + ".index");
         DynamicArrayStore arrayPropertyStore = newDynamicArrayStore( s + ".arrays" );
-        return new PropertyStore( s, config, idGeneratorFactory, fileSystemAbstraction, stringLogger,
+        return new PropertyStore( s, config, idGeneratorFactory, windowPoolFactory, fileSystemAbstraction, stringLogger,
                 stringPropertyStore, propertyIndexStore, arrayPropertyStore);
     }
 
     private PropertyIndexStore newPropertyIndexStore(String s)
     {
         DynamicStringStore nameStore = newDynamicStringStore(s + ".keys", IdType.PROPERTY_INDEX_BLOCK);
-        return new PropertyIndexStore( s, config, idGeneratorFactory, fileSystemAbstraction, stringLogger, nameStore );
+        return new PropertyIndexStore( s, config, idGeneratorFactory, windowPoolFactory,
+                fileSystemAbstraction, stringLogger, nameStore );
     }
 
     private RelationshipStore newRelationshipStore(String s)
     {
-        return new RelationshipStore( s, config, idGeneratorFactory, fileSystemAbstraction, stringLogger);
+        return new RelationshipStore( s, config, idGeneratorFactory, windowPoolFactory,
+                fileSystemAbstraction, stringLogger);
     }
 
     private DynamicArrayStore newDynamicArrayStore(String s)
     {
-        return new DynamicArrayStore( s, config, IdType.ARRAY_BLOCK, idGeneratorFactory, fileSystemAbstraction, stringLogger);
+        return new DynamicArrayStore( s, config, IdType.ARRAY_BLOCK, idGeneratorFactory, windowPoolFactory,
+                fileSystemAbstraction, stringLogger);
     }
 
     private NodeStore newNodeStore(String s)
     {
-        return new NodeStore( s, config, idGeneratorFactory, fileSystemAbstraction, stringLogger );
+        return new NodeStore( s, config, idGeneratorFactory, windowPoolFactory, fileSystemAbstraction, stringLogger );
     }
 
     public NeoStore createNeoStore(String fileName)
@@ -236,8 +245,8 @@ public class StoreFactory
     private void createPropertyStore( String fileName )
     {
         createEmptyStore( fileName, buildTypeDescriptorAndVersion( PropertyStore.TYPE_DESCRIPTOR ));
-        int stringStoreBlockSize = config.getInteger( Configuration.string_block_size );
-        int arrayStoreBlockSize = config.getInteger( Configuration.array_block_size );
+        int stringStoreBlockSize = config.get( Configuration.string_block_size );
+        int arrayStoreBlockSize = config.get( Configuration.array_block_size );
 
         createDynamicStringStore(fileName + ".strings", stringStoreBlockSize, IdType.STRING_BLOCK);
         createPropertyIndexStore(fileName + ".index");

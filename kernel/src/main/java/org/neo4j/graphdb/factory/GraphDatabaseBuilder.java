@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+
 import org.neo4j.graphdb.GraphDatabaseService;
 
 /**
@@ -56,12 +57,13 @@ public class GraphDatabaseBuilder
      * @param value
      * @return the builder
      */
-    public GraphDatabaseBuilder setConfig(GraphDatabaseSetting setting, String value)
+    public GraphDatabaseBuilder setConfig( GraphDatabaseSetting setting, String value )
     {
-        if (value == null)
+        if ( value == null )
         {
             config.remove( setting.name() );
-        } else
+        }
+        else
         {
             setting.validate( value );
             config.put( setting.name(), value );
@@ -79,7 +81,7 @@ public class GraphDatabaseBuilder
      * @param value
      * @return the builder
      */
-    public GraphDatabaseBuilder setConfig(String name, String value)
+    public GraphDatabaseBuilder setConfig( String name, String value )
     {
         if (value == null)
         {

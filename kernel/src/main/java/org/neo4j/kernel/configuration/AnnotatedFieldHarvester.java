@@ -38,10 +38,12 @@ public class AnnotatedFieldHarvester {
 	public <T> Iterable<Pair<Field, T>> findStatic(Class<?> clazz,
 			Class<T> type, Class annotation) {
 		List<Pair<Field, T>> found = new ArrayList<Pair<Field, T>>();
-		for( Field field : clazz.getFields() )
+		for( Field field : clazz.getDeclaredFields() )
         {
             try
             {
+                field.setAccessible( true );
+
                 Object fieldValue = field.get( null );
                 if(type.isInstance(fieldValue) && 
                 		(annotation == null || field.getAnnotation(annotation) != null)) 

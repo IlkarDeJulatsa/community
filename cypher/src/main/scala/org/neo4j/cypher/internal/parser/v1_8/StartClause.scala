@@ -20,7 +20,9 @@
 package org.neo4j.cypher.internal.parser.v1_8
 
 import org.neo4j.cypher.internal.commands._
+import expressions.{Literal, Expression, ParameterExpression, Identifier}
 import org.neo4j.graphdb.Direction
+import org.neo4j.helpers.ThisShouldNotHappenError
 
 
 trait StartClause extends Base with Expressions with CreateUnique {
@@ -42,9 +44,23 @@ trait StartClause extends Base with Expressions with CreateUnique {
 
   case class NamedPathWStartItems(path:NamedPath, items:Seq[StartItem])
 
+  private def removeProperties(in:AbstractPattern):AbstractPattern = in match {
+    case ParsedNamedPath(name, patterns) => throw new ThisShouldNotHappenError("Andres", "We don't support paths in paths, and so should never see this")
+    case rel: ParsedRelation => rel.copy(
+      props = Map(),
+      start = rel.start.copy(props = Map()),
+      end = rel.end.copy(props = Map())
+    )
+    case n:ParsedEntity => n.copy(props = Map())
+  }
+
   private def translate(abstractPattern: AbstractPattern): Maybe[Any] = abstractPattern match {
     case ParsedNamedPath(name, patterns) =>
-      val namedPathPatterns: Maybe[Any] = patterns.map(matchTranslator).reduce(_ ++ _)
+      val namedPathPatterns: Maybe[Any] = patterns.
+        map(removeProperties).
+        map(matchTranslator).
+        reduce(_ ++ _)
+
       val startItems = patterns.map(p => translate(p.makeOutgoing)).reduce(_ ++ _)
 
       startItems match {
@@ -62,7 +78,7 @@ trait StartClause extends Base with Expressions with CreateUnique {
         (b, a)
       Yes(Seq(CreateRelationshipStartItem(name, (from, startProps), (to, endProps), relType.head, props)))
 
-    case ParsedEntity(Entity(name), props, True()) =>
+    case ParsedEntity(Identifier(name), props, True()) =>
       Yes(Seq(CreateNodeStartItem(name, props)))
 
     case ParsedEntity(p, _, True()) if p.isInstanceOf[ParameterExpression] =>

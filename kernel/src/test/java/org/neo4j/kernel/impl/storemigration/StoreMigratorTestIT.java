@@ -44,6 +44,7 @@ import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.EmbeddedGraphDatabase;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.nioneo.store.DefaultWindowPoolFactory;
 import org.neo4j.kernel.impl.nioneo.store.NeoStore;
 import org.neo4j.kernel.impl.nioneo.store.PropertyType;
 import org.neo4j.kernel.impl.nioneo.store.StoreFactory;
@@ -60,7 +61,7 @@ public class StoreMigratorTestIT
     {
         URL legacyStoreResource = getClass().getResource( "legacystore/exampledb/neostore" );
 
-        LegacyStore legacyStore = new LegacyStore( legacyStoreResource.getFile() );
+        LegacyStore legacyStore = new LegacyStore( legacyStoreResource.getFile(), StringLogger.DEV_NULL );
 
         Config config = MigrationTestUtils.defaultConfig();
         File outputDir = new File( "target/outputDatabase" );
@@ -69,7 +70,7 @@ public class StoreMigratorTestIT
 
         String storeFileName = "target/outputDatabase/neostore";
         StoreFactory factory = new StoreFactory( config, defaultIdGeneratorFactory(),
-                defaultFileSystemAbstraction(), StringLogger.DEV_NULL, defaultTxHook() );
+                new DefaultWindowPoolFactory(), defaultFileSystemAbstraction(), StringLogger.DEV_NULL, defaultTxHook() );
         NeoStore neoStore = factory.createNeoStore( storeFileName );
 
         ListAccumulatorMigrationProgressMonitor monitor = new ListAccumulatorMigrationProgressMonitor();

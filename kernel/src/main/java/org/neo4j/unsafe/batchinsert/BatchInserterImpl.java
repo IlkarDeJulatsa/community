@@ -45,6 +45,7 @@ import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ConfigurationDefaults;
 import org.neo4j.kernel.impl.batchinsert.SimpleRelationship;
 import org.neo4j.kernel.impl.index.IndexStore;
+import org.neo4j.kernel.impl.nioneo.store.DefaultWindowPoolFactory;
 import org.neo4j.kernel.impl.nioneo.store.DynamicRecord;
 import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
 import org.neo4j.kernel.impl.nioneo.store.IdGeneratorImpl;
@@ -104,11 +105,12 @@ public class BatchInserterImpl implements BatchInserter
 
         params = new ConfigurationDefaults( GraphDatabaseSettings.class ).apply( params );
         Config config = new Config( params );
-        boolean dump = config.get(GraphDatabaseSettings.dump_configuration);
+        boolean dump = config.get( GraphDatabaseSettings.dump_configuration );
         this.storeDir = storeDir;
         this.idGeneratorFactory = new DefaultIdGeneratorFactory();
 
-        StoreFactory sf = new StoreFactory( config, idGeneratorFactory, fileSystem, StringLogger.DEV_NULL, null);
+        StoreFactory sf = new StoreFactory( config,idGeneratorFactory, new DefaultWindowPoolFactory(), fileSystem,
+                StringLogger.DEV_NULL, null );
 
         String store = fixPath( storeDir, sf );
         if ( dump )

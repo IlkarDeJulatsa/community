@@ -31,6 +31,7 @@ import org.neo4j.kernel.DefaultFileSystemAbstraction;
 import org.neo4j.kernel.DefaultIdGeneratorFactory;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ConfigurationDefaults;
+import org.neo4j.kernel.impl.nioneo.store.DefaultWindowPoolFactory;
 import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
 import org.neo4j.kernel.impl.nioneo.store.NeoStore;
 import org.neo4j.kernel.impl.nioneo.store.StoreFactory;
@@ -45,12 +46,12 @@ public class StoreMigrationTool
         String legacyStoreDirectory = args[0];
         String targetStoreDirectory = args[1];
 
-        new StoreMigrationTool().run( legacyStoreDirectory, targetStoreDirectory );
+        new StoreMigrationTool().run( legacyStoreDirectory, targetStoreDirectory, StringLogger.SYSTEM);
     }
 
-    private void run( String legacyStoreDirectory, String targetStoreDirectory ) throws IOException
+    private void run( String legacyStoreDirectory, String targetStoreDirectory, StringLogger log ) throws IOException
     {
-        LegacyStore legacyStore = new LegacyStore( new File( new File( legacyStoreDirectory ), NeoStore.DEFAULT_NAME ).getPath() );
+        LegacyStore legacyStore = new LegacyStore( new File( new File( legacyStoreDirectory ), NeoStore.DEFAULT_NAME ).getPath(), log );
 
         Map<String,String> config = new HashMap<String,String>();
 
@@ -71,7 +72,8 @@ public class StoreMigrationTool
 
         config = new ConfigurationDefaults(GraphDatabaseSettings.class ).apply( config );
 
-        NeoStore neoStore = new StoreFactory(new Config( config ), new DefaultIdGeneratorFactory(), fileSystem, StringLogger.SYSTEM, null).createNeoStore(targetStoreFile.getPath());
+        NeoStore neoStore = new StoreFactory(new Config( config ), new DefaultIdGeneratorFactory(),
+                new DefaultWindowPoolFactory(), fileSystem, log, null ).createNeoStore(targetStoreFile.getPath());
 
         long startTime = System.currentTimeMillis();
 

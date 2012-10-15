@@ -34,6 +34,7 @@ import org.junit.After;
 import org.junit.Test;
 import org.neo4j.helpers.Pair;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.nioneo.store.DefaultWindowPoolFactory;
 import org.neo4j.kernel.impl.nioneo.store.NeoStore;
 import org.neo4j.kernel.impl.nioneo.store.PropertyBlock;
 import org.neo4j.kernel.impl.nioneo.store.PropertyRecord;
@@ -56,7 +57,7 @@ public class PropertyWriterTestIT
         assertTrue( outputDir.mkdirs() );
         File fileName = new File( outputDir, "neostore" );
         StoreFactory storeFactory = new StoreFactory( config, defaultIdGeneratorFactory(),
-                defaultFileSystemAbstraction(), StringLogger.DEV_NULL, defaultTxHook() );
+                new DefaultWindowPoolFactory(), defaultFileSystemAbstraction(), StringLogger.DEV_NULL, defaultTxHook() );
         neoStore = storeFactory.createNeoStore( fileName.getAbsolutePath() );
         return neoStore.getPropertyStore();
     }

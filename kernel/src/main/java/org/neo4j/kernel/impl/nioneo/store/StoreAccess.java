@@ -94,7 +94,8 @@ public class StoreAccess
         this(
             new StoreFactory( new Config( new ConfigurationDefaults( GraphDatabaseSettings.class )
                                               .apply( requiredParams( params, path ) ) ), new DefaultIdGeneratorFactory(),
-                              new DefaultFileSystemAbstraction(), initLogger( path ),
+
+                    new DefaultWindowPoolFactory(), new DefaultFileSystemAbstraction(), initLogger( path ),
                               new DefaultTxHook() ).attemptNewNeoStore( new File( path, "neostore" ).getAbsolutePath() ) );
         this.closeable = true;
     }

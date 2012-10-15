@@ -20,13 +20,10 @@
 
 package org.neo4j.kernel.impl.nioneo.store;
 
-import static org.neo4j.helpers.Exceptions.launderedException;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.OverlappingFileLockException;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -38,7 +35,11 @@ import org.neo4j.kernel.IdType;
 import org.neo4j.kernel.InternalAbstractGraphDatabase;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.core.ReadOnlyDbException;
+import org.neo4j.kernel.impl.nioneo.store.windowpool.WindowPool;
+import org.neo4j.kernel.impl.nioneo.store.windowpool.WindowPoolFactory;
 import org.neo4j.kernel.impl.util.StringLogger;
+
+import static org.neo4j.helpers.Exceptions.launderedException;
 
 /**
  * Contains common implementation for {@link AbstractStore} and
@@ -64,15 +65,16 @@ public abstract class CommonAbstractStore
         .getLogger( CommonAbstractStore.class.getName() );
 
     protected Config configuration;
-    protected IdGeneratorFactory idGeneratorFactory;
+    private final IdGeneratorFactory idGeneratorFactory;
+    private final WindowPoolFactory windowPoolFactory;
     protected FileSystemAbstraction fileSystemAbstraction;
 
     protected final String storageFileName;
-    private final IdType idType;
+    protected final IdType idType;
     protected StringLogger stringLogger;
     private IdGenerator idGenerator = null;
     private FileChannel fileChannel = null;
-    private PersistenceWindowPool windowPool;
+    private WindowPool windowPool;
     private boolean storeOk = true;
     private Throwable causeOfStoreNotOk;
     private FileLock fileLock;
@@ -97,17 +99,20 @@ public abstract class CommonAbstractStore
      *
      * @param idType
      *            The Id used to index into this store
+     * @param windowPoolFactory
      */
     public CommonAbstractStore( String fileName, Config configuration, IdType idType,
-                                IdGeneratorFactory idGeneratorFactory, FileSystemAbstraction fileSystemAbstraction, StringLogger stringLogger)
+                                IdGeneratorFactory idGeneratorFactory, WindowPoolFactory windowPoolFactory,
+                                FileSystemAbstraction fileSystemAbstraction, StringLogger stringLogger )
     {
         this.storageFileName = fileName;
         this.configuration = configuration;
         this.idGeneratorFactory = idGeneratorFactory;
+        this.windowPoolFactory = windowPoolFactory;
         this.fileSystemAbstraction = fileSystemAbstraction;
         this.idType = idType;
         this.stringLogger = stringLogger;
-        grabFileLock = configuration.getBoolean( Configuration.grab_file_lock );
+        grabFileLock = configuration.get( Configuration.grab_file_lock );
 
         try
         {
@@ -147,8 +152,8 @@ public abstract class CommonAbstractStore
 
     protected void checkStorage()
     {
-        readOnly = configuration.getBoolean( Configuration.read_only );
-        backupSlave = configuration.getBoolean( Configuration.backup_slave );
+        readOnly = configuration.get( Configuration.read_only );
+        backupSlave = configuration.get( Configuration.backup_slave );
         if ( !fileSystemAbstraction.fileExists( storageFileName ) )
         {
             throw new IllegalStateException( "No such store[" + storageFileName
@@ -220,9 +225,9 @@ public abstract class CommonAbstractStore
         }
         loadIdGenerator();
 
-        setWindowPool( new PersistenceWindowPool( getStorageFileName(),
-            getEffectiveRecordSize(), getFileChannel(), calculateMappedMemory(configuration.getParams(), storageFileName ),
-            configuration.getBoolean( Configuration.use_memory_mapped_buffers ), isReadOnly() && !isBackupSlave() ) );
+        this.windowPool = windowPoolFactory.create( getStorageFileName(),
+            getEffectiveRecordSize(), getFileChannel(), configuration,
+                stringLogger );
     }
 
     protected abstract int getEffectiveRecordSize();
@@ -344,24 +349,6 @@ public abstract class CommonAbstractStore
     }
 
     /**
-     * Sets the {@link PersistenceWindowPool} for this store to use. Normally
-     * this is set in the {@link #loadStorage()} method. This method must be
-     * invoked with a valid "pool" before any of the
-     * {@link #acquireWindow(long, OperationType)}
-     * {@link #releaseWindow(PersistenceWindow)}
-     * {@link #flushAll()}
-     * {@link #close()}
-     * methods are invoked.
-     *
-     * @param pool
-     *            The window pool this store should use
-     */
-    protected void setWindowPool( PersistenceWindowPool pool )
-    {
-        this.windowPool = pool;
-    }
-
-    /**
      * Returns the next id for this store's {@link IdGenerator}.
      *
      * @return The next free id
@@ -410,55 +397,6 @@ public abstract class CommonAbstractStore
         {
             idGenerator.setHighId( highId );
         }
-    }
-
-    /**
-     * Returns memory assigned for
-     * {@link MappedPersistenceWindow memory mapped windows} in bytes. The
-     * configuration map passed in one constructor is checked for an entry with
-     * this stores name.
-     *
-     * @return The number of bytes memory mapped windows this store has
-     * @param config Map of configuration parameters
-     * @param storageFileName Name of the file on disk
-     */
-    private long calculateMappedMemory( Map<?, ?> config, String storageFileName )
-    {
-        String convertSlash = storageFileName.replace( '\\', '/' );
-        String realName = convertSlash.substring( convertSlash
-            .lastIndexOf( '/' ) + 1 );
-        String mem = (String) config.get( realName + ".mapped_memory" );
-        if ( mem != null )
-        {
-            long multiplier = 1;
-            mem = mem.trim().toLowerCase();
-            if ( mem.endsWith( "m" ) )
-            {
-                multiplier = 1024 * 1024;
-                mem = mem.substring( 0, mem.length() - 1 );
-            }
-            else if ( mem.endsWith( "k" ) )
-            {
-                multiplier = 1024;
-                mem = mem.substring( 0, mem.length() - 1 );
-            }
-            else if ( mem.endsWith( "g" ) )
-            {
-                multiplier = 1024*1024*1024;
-                mem = mem.substring( 0, mem.length() - 1 );
-            }
-            try
-            {
-                return Integer.parseInt( mem ) * multiplier;
-            }
-            catch ( NumberFormatException e )
-            {
-                logger.info( "Unable to parse mapped memory[" + mem
-                    + "] string for " + storageFileName );
-            }
-        }
-
-        return 0;
     }
 
     /**

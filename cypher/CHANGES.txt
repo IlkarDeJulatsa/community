@@ -1,4 +1,19 @@
-1.8
+1.9
+--------------------
+o Refactored the type system from the bottom up
+o Predicates can now be returned and used to set properties
+o Fixes #797: CREATE UNIQUE now makes sure used identifiers have the same properties even if 
+  they are re-used without the properties
+o Added the traversal matcher, which uses the new traversal framework abilities to do
+  pattern matching. It should provide for nice performance benefits for a lot of queries.
+o Fixed #866: Changed the LRU cache to make it safe to use concurrently, and made the parser single threaded
+o Added the reduce() functionality
+o Made addition automatically convert numbers to strings when adding the two together
+o Added the string functions: str(), replace(), substring(), left(), right(), ltrim(), rtrim(), trim(), lower(), upper()
+o Fixes #904: CREATE UNIQUE doesn't work with parameter maps
+
+
+1.8.RC1 (2012-09-05)
 --------------------
 o Removed the /../ literal for regular expressions. Now a normal string literal is used instead
 o Concatenation handles types better
@@ -9,8 +24,9 @@ o Fixed #795: so that WITH keeps parameters also for empty aggregation results
 o Fixed #772: Creating nodes/relationships goes before SET, so SET can run on already created elements
 o Added error when using != instead of <>
 o Fixed #787: Issue when comparing array properties with literal collections
-o Fixes #751: Better error message for some type errors
-o Fixed #818: problem where properties could only have scalar values (they can be arrays as well)
+o Fixed #751: Better error message for some type errors
+o Fixed #818: Problem where properties could only have scalar values (they can be arrays as well)
+o Fixed #834: Gives relevant syntax exception when properties are entered in MATCH
 
 1.8.M07 (2012-08-08)
 --------------------

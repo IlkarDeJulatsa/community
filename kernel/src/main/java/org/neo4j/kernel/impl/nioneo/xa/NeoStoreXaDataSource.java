@@ -208,6 +208,8 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         super( BRANCH_ID, Config.DEFAULT_DATA_SOURCE_NAME );
         this.config = config;
         this.providers = providers;
+
+        readOnly = config.get( Configuration.read_only );
         this.lockManager = lockManager;
         this.lockReleaser = lockReleaser;
         msgLog = stringLogger;
@@ -275,7 +277,7 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
             this.idGenerators.put( PropertyStore.class,
                 neoStore.getPropertyStore() );
             this.idGenerators.put( PropertyIndex.class,
-                neoStore.getPropertyStore().getIndexStore() );
+                                   neoStore.getPropertyStore().getIndexStore() );
             setLogicalLogAtCreationTime( xaContainer.getLogicalLog() );
         }
         catch ( Throwable e )

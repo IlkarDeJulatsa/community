@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.neo4j.kernel.IdGeneratorFactory;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.nioneo.store.DefaultWindowPoolFactory;
 import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
 import org.neo4j.kernel.impl.nioneo.store.NeoStore;
 import org.neo4j.kernel.impl.nioneo.store.StoreFactory;
@@ -44,9 +45,10 @@ public class StoreUpgrader
     private IdGeneratorFactory idGeneratorFactory;
     private FileSystemAbstraction fileSystemAbstraction;
 
-    public StoreUpgrader( Config originalConfig, StringLogger msgLog, UpgradeConfiguration upgradeConfiguration, UpgradableDatabase upgradableDatabase,
-                          StoreMigrator storeMigrator, DatabaseFiles databaseFiles,
-                          IdGeneratorFactory idGeneratorFactory, FileSystemAbstraction fileSystemAbstraction)
+    public StoreUpgrader( Config originalConfig, StringLogger msgLog, UpgradeConfiguration upgradeConfiguration,
+                          UpgradableDatabase upgradableDatabase, StoreMigrator storeMigrator,
+                          DatabaseFiles databaseFiles, IdGeneratorFactory idGeneratorFactory,
+                          FileSystemAbstraction fileSystemAbstraction)
     {
         this.msgLog = msgLog;
         this.idGeneratorFactory = idGeneratorFactory;
@@ -106,13 +108,13 @@ public class StoreUpgrader
         upgradeConfig.put( "neo_store", upgradeFileName );
 
 
-
         Config upgradeConfiguration = new Config( upgradeConfig );
         
-        NeoStore neoStore = new StoreFactory(upgradeConfiguration, idGeneratorFactory, fileSystemAbstraction, StringLogger.DEV_NULL, null).createNeoStore(upgradeFileName);
+        NeoStore neoStore = new StoreFactory( upgradeConfiguration, idGeneratorFactory, new DefaultWindowPoolFactory(),
+                fileSystemAbstraction, StringLogger.DEV_NULL, null ).createNeoStore(upgradeFileName);
         try
         {
-            storeMigrator.migrate( new LegacyStore( storageFileName ), neoStore );
+            storeMigrator.migrate( new LegacyStore( storageFileName, StringLogger.DEV_NULL ), neoStore );
         }
         catch ( IOException e )
         {

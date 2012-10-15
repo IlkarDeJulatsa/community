@@ -72,10 +72,23 @@ public class TestJavaTestDocsGenerator implements GraphHolder
         doc.addSnippet( "snippet12", snippet12 );
         doc.addSnippet( "snippet_2-1", snippet2 );
         doc.document( directory.getAbsolutePath(), sectionName );
-        String result = readFileAsString( new File(sectionDirectory, "title1.txt"));
+
+        String result = readFileAsString( new File( sectionDirectory,
+                "title1.asciidoc" ) );
+        assertTrue( result.contains( "include::includes/title1-snippet1.asciidoc[]" ) );
+        assertTrue( result.contains( "include::includes/title1-snippet_2-1.asciidoc[]" ) );
+        assertTrue( result.contains( "include::includes/title1-snippet12.asciidoc[]" ) );
+
+        File includes = new File( sectionDirectory, "includes" );
+        result = readFileAsString( new File( includes,
+                "title1-snippet1.asciidoc" ) );
         assertTrue( result.contains( snippet1 ) );
-        assertTrue( result.contains( snippet12 ) );
+        result = readFileAsString( new File( includes,
+                "title1-snippet_2-1.asciidoc" ) );
         assertTrue( result.contains( snippet2 ) );
+        result = readFileAsString( new File( includes,
+                "title1-snippet12.asciidoc" ) );
+        assertTrue( result.contains( snippet12 ) );
     }
 
     @Documented( value = "@@snippet1\n" )
@@ -112,12 +125,19 @@ public class TestJavaTestDocsGenerator implements GraphHolder
         doc.addSnippet( "snippet1", snippet1 );
         doc.addSnippet( "snippet2", snippet2 );
         doc.document( directory.getAbsolutePath(), sectionName );
-        String result = readFileAsString( new File(sectionDirectory, "title2.txt"));
+        String result = readFileAsString( new File( sectionDirectory,
+                "title2.asciidoc" ) );
+        assertTrue( result.contains( "include::includes/title2-snippet1.asciidoc[]" ) );
+        assertTrue( result.contains( "include::includes/title2-snippet2.asciidoc[]" ) );
+        result = readFileAsString( new File( new File( sectionDirectory,
+                "includes" ), "title2-snippet1.asciidoc" ) );
         assertTrue( result.contains( snippet1 ) );
+        result = readFileAsString( new File( new File( sectionDirectory,
+                "includes" ), "title2-snippet2.asciidoc" ) );
         assertTrue( result.contains( snippet2 ) );
     }
 
-    private static String readFileAsString( File file )
+    static String readFileAsString( File file )
             throws java.io.IOException
     {
         byte[] buffer = new byte[(int) file.length()];

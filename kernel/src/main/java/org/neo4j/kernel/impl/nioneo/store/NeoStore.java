@@ -32,6 +32,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.IdGeneratorFactory;
 import org.neo4j.kernel.IdType;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.nioneo.store.windowpool.WindowPoolFactory;
 import org.neo4j.kernel.impl.transaction.TxHook;
 import org.neo4j.kernel.impl.util.Bits;
 import org.neo4j.kernel.impl.util.StringLogger;
@@ -79,18 +80,20 @@ public class NeoStore extends AbstractStore
     private final Config conf;
 
     public NeoStore(String fileName, Config conf,
-                    IdGeneratorFactory idGeneratorFactory, FileSystemAbstraction fileSystemAbstraction,
+                    IdGeneratorFactory idGeneratorFactory, WindowPoolFactory windowPoolFactory,
+                    FileSystemAbstraction fileSystemAbstraction,
                     StringLogger stringLogger, TxHook txHook,
                     RelationshipTypeStore relTypeStore, PropertyStore propStore, RelationshipStore relStore, NodeStore nodeStore)
     {
-        super( fileName, conf, IdType.NEOSTORE_BLOCK, idGeneratorFactory, fileSystemAbstraction, stringLogger);
+        super( fileName, conf, IdType.NEOSTORE_BLOCK, idGeneratorFactory, windowPoolFactory,
+                fileSystemAbstraction, stringLogger);
         this.fileName = fileName;
         this.conf = conf;
         this.relTypeStore = relTypeStore;
         this.propStore = propStore;
         this.relStore = relStore;
         this.nodeStore = nodeStore;
-        REL_GRAB_SIZE = conf.getInteger( Configuration.relationship_grab_size );
+        REL_GRAB_SIZE = conf.get( Configuration.relationship_grab_size );
         this.txHook = txHook;
 
         /* [MP:2012-01-03] Fix for the problem in 1.5.M02 where store version got upgraded but
