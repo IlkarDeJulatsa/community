@@ -194,7 +194,7 @@ public class LockManagerImpl implements LockManager
             if ( lock == null )
             {
                 throw new LockNotFoundException( "Lock not found for: "
-                    + resource );
+                    + resource + " tx:" + tx );
             }
             if ( !lock.isMarked() && lock.getReadCount() == 1 &&
                 lock.getWriteCount() == 0 &&
@@ -232,7 +232,7 @@ public class LockManagerImpl implements LockManager
             if ( lock == null )
             {
                 throw new LockNotFoundException( "Lock not found for: "
-                    + resource );
+                    + resource + " tx:" + tx );
             }
             if ( !lock.isMarked() && lock.getReadCount() == 0 &&
                 lock.getWriteCount() == 1 &&
