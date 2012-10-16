@@ -142,6 +142,59 @@ public class LogTestUtils
         }
     };
     
+    public static final LogHook<Pair<Byte, List<byte[]>>> DUMP = new LogHook<Pair<Byte,List<byte[]>>>()
+    {
+        private int recordCount = 0;
+        
+        @Override
+        public boolean accept( Pair<Byte, List<byte[]>> item )
+        {
+            System.out.println( stringify( item.first() ) + ": " + stringify( item.other() ) );
+            recordCount++;
+            return true;
+        }
+        
+        private String stringify( List<byte[]> list )
+        {
+            if ( list.size() == 2 )
+                return new XidImpl( list.get( 0 ), list.get( 1 ) ).toString();
+            else if ( list.size() == 1 )
+                return stripFromBranch( new XidImpl( list.get( 0 ), new byte[0] ).toString() );
+            throw new RuntimeException( list.toString() );
+        }
+
+        private String stripFromBranch( String xidToString )
+        {
+            int index = xidToString.lastIndexOf( ", BranchId" );
+            return xidToString.substring( 0, index );
+        }
+
+        private String stringify( Byte recordType )
+        {
+            switch ( recordType.byteValue() )
+            {
+            case TxLog.TX_START: return "TX_START";
+            case TxLog.BRANCH_ADD: return "BRANCH_ADD";
+            case TxLog.MARK_COMMIT: return "MARK_COMMIT";
+            case TxLog.TX_DONE: return "TX_DONE";
+            default: return "Unknown " + recordType;
+            }
+        }
+
+        @Override
+        public void file( File file )
+        {
+            System.out.println( "=== File:" + file + " ===" );
+            recordCount = 0;
+        }
+        
+        @Override
+        public void done( File file )
+        {
+            System.out.println( "===> Read " + recordCount + " records from " + file );
+        }
+    };
+    
     private static class ByteArray
     {
         private final byte[] bytes;
@@ -188,6 +241,7 @@ public class LogTestUtils
         FileChannel out = new RandomAccessFile( tempFile, "rw" ).getChannel();
         LogBuffer outBuffer = new DirectMappedLogBuffer( out );
         ByteBuffer buffer = ByteBuffer.allocate( 1024*1024 );
+        boolean changed = false;
         try
         {
             filter.file( file );
@@ -208,6 +262,8 @@ public class LogTestUtils
                     outBuffer.put( type );
                     writeXids( xids, outBuffer );
                 }
+                else
+                    changed = true;
             }
         }
         finally
@@ -217,7 +273,11 @@ public class LogTestUtils
             safeClose( out );
             filter.done( file );
         }
-        replace( tempFile, file );
+        
+        if ( changed )
+            replace( tempFile, file );
+        else
+            tempFile.delete();
     }
     
     private static void replace( File tempFile, File file )
@@ -243,12 +303,17 @@ public class LogTestUtils
         ByteBuffer buffer = ByteBuffer.allocate( 1024*1024 );
         transferLogicalLogHeader( in, outBuffer, buffer );
         CommandFactory cf = new CommandFactory();
+        boolean changed = false;
         try
         {
             LogEntry entry = null;
             while ( (entry = readEntry( buffer, in, cf ) ) != null )
             {
-                if ( !filter.accept( entry ) ) continue;
+                if ( !filter.accept( entry ) )
+                {
+                    changed = true;
+                    continue;
+                }
                 writeLogEntry( entry, outBuffer );
             }
         }
@@ -260,7 +325,10 @@ public class LogTestUtils
             filter.done( file );
         }
    
-        replace( tempFile, file );
+        if ( changed )
+            replace( tempFile, file );
+        else
+            tempFile.delete();
     }
 
     private static void transferLogicalLogHeader( FileChannel in, LogBuffer outBuffer,
