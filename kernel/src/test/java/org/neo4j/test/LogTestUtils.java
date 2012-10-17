@@ -129,7 +129,7 @@ public class LogTestUtils
             }
             return true;
         }
-        
+
         @Override
         public void file( File file )
         {
@@ -375,16 +375,7 @@ public class LogTestUtils
             filter.done( file );
         }
 
-        if ( changed )
-        {
-            replace( tempFile, file );
-        }
-        else
-        {
-            tempFile.delete();
-        }
-
-        return file;
+        return tempFile;
     }
 
     private static void transferLogicalLogHeader( FileChannel in, LogBuffer outBuffer,

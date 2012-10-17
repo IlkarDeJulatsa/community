@@ -86,7 +86,6 @@ public class DiagnosticsLoggingTest
         public void logMessage( String msg, Throwable cause, boolean flush )
         {
             appendLine( msg );
-            cause.printStackTrace();
         }
 
         @Override

@@ -25,4 +25,9 @@ public class LockNotFoundException extends LockException
     {
         super( message );
     }
+
+    public LockNotFoundException( String s, Throwable throwable )
+    {
+        super(s, throwable);
+    }
 }

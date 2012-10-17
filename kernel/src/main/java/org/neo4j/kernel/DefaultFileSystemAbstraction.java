@@ -80,7 +80,16 @@ public class DefaultFileSystemAbstraction
     @Override
     public void copyFile( String from, String to ) throws IOException
     {
-        FileUtils.copyRecursively( new File( from ), new File( to ) );
+        File fromFile = new File( from );
+        File toFile = new File( to );
+        if ( fromFile.isDirectory() )
+        {
+            FileUtils.copyRecursively( fromFile, toFile );
+        }
+        else
+        {
+            FileUtils.copyFile( fromFile, toFile );
+        }
     }
 
     @Override
