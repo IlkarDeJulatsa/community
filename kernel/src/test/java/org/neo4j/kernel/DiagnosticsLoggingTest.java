@@ -39,7 +39,7 @@ public class DiagnosticsLoggingTest
     {
         File temp = TargetDirectory.forTest( getClass() ).directory( "temp" );
         // We use an EmbeddedDatabase because Impermanent does not create the directory and returns 0 for disk space
-        FakeDatabase db = new FakeDatabase(temp.getAbsolutePath());
+        FakeDatabase db = new FakeDatabase( temp.getAbsolutePath() );
         FakeLogger logger = db.getLogger();
         String messages = logger.getMessages();
         assertThat( messages, containsString( "Network information" ) );
@@ -86,6 +86,7 @@ public class DiagnosticsLoggingTest
         public void logMessage( String msg, Throwable cause, boolean flush )
         {
             appendLine( msg );
+            cause.printStackTrace();
         }
 
         @Override

@@ -64,4 +64,12 @@ public abstract class AbstractTransactionManager implements TransactionManager, 
     }
 
     public abstract int getEventIdentifier();
+
+    /**
+     * @return the error that happened during recovery, if recovery has taken place, null otherwise.
+     */
+    public Throwable getRecoveryError()
+    {
+        return null;
+    }
 }

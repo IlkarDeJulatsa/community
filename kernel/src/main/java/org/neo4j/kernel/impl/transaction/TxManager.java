@@ -97,6 +97,8 @@ public class TxManager extends AbstractTransactionManager implements Lifecycle
     private final FileSystemAbstraction fileSystem;
     private TxManager.TxManagerDataSourceRegistrationListener dataSourceRegistrationListener;
 
+    private Throwable recoveryError;
+
     public TxManager( String txLogDir,
                       XaDataSourceManager xaDataSourceManager,
                       KernelPanicEventGenerator kpe,
@@ -152,11 +154,9 @@ public class TxManager extends AbstractTransactionManager implements Lifecycle
     {
         try
         {
-            Iterator<List<TxLog.Record>> danglingRecordList = txLog.getDanglingRecords();
-
-            while ( danglingRecordList.hasNext() )
+            Iterable<List<TxLog.Record>> danglingRecordList = txLog.getDanglingRecords();
+            for ( List<TxLog.Record> tx : danglingRecordList )
             {
-                List<TxLog.Record> tx = danglingRecordList.next();
                 for ( TxLog.Record rec : tx )
                 {
                     if ( rec.getType() == TxLog.BRANCH_ADD )
@@ -809,7 +809,7 @@ public class TxManager extends AbstractTransactionManager implements Lifecycle
         }
     }
 
-    public void doRecovery() throws Throwable
+    public void doRecovery()
     {
         if ( txLog == null )
         {
@@ -826,8 +826,8 @@ public class TxManager extends AbstractTransactionManager implements Lifecycle
             {
                 txThreadMap = new ConcurrentHashMap<Thread, TransactionImpl>();
                 // Do recovery on start - all Resources should be registered by now
-                Iterator<List<TxLog.Record>> danglingRecordList = txLog.getDanglingRecords();
-                boolean danglingRecordFound = danglingRecordList.hasNext();
+                Iterable<List<TxLog.Record>> danglingRecordList = txLog.getDanglingRecords();
+                boolean danglingRecordFound = danglingRecordList.iterator().hasNext();
 
                 if ( danglingRecordFound )
                 {
@@ -837,7 +837,7 @@ public class TxManager extends AbstractTransactionManager implements Lifecycle
                     log.logMessage( "TM non resolved transactions found in " + txLog.getName(), true );
 
                     // Recover DataSources
-                    xaDataSourceManager.recover( danglingRecordList );
+                    xaDataSourceManager.recover( danglingRecordList.iterator() );
 
                     log.logMessage( "Recovery completed, all transactions have been " +
                             "resolved to a consistent state." );
@@ -851,7 +851,7 @@ public class TxManager extends AbstractTransactionManager implements Lifecycle
         {
             setTmNotOk( t );
 
-            throw t;
+            recoveryError = t;
         }
     }
 
@@ -949,6 +949,12 @@ public class TxManager extends AbstractTransactionManager implements Lifecycle
         }
     }
 
+    @Override
+    public Throwable getRecoveryError()
+    {
+        return recoveryError;
+    }
+
     public int getStartedTxCount()
     {
         return startedTxCount.get();
@@ -979,22 +985,16 @@ public class TxManager extends AbstractTransactionManager implements Lifecycle
         @Override
         public void registeredDataSource( XaDataSource ds )
         {
-            try
+            branches.put( new RecoveredBranchInfo( ds.getBranchId() ), true );
+            boolean everythingRegistered = true;
+            for ( boolean dsRegistered : branches.values() )
             {
-                branches.put( new RecoveredBranchInfo( ds.getBranchId() ), true );
-                boolean everythingRegistered = true;
-                for ( boolean dsRegistered : branches.values() )
-                {
-                    everythingRegistered &= dsRegistered;
-                }
-                if ( everythingRegistered && txLog == null )
-                {
-                    openLog();
-                }
+                everythingRegistered &= dsRegistered;
             }
-            catch ( Throwable throwable )
+            if ( everythingRegistered )
             {
-                throw new RuntimeException( throwable );
+//                    openLog();
+                doRecovery();
             }
         }
 
@@ -1003,11 +1003,11 @@ public class TxManager extends AbstractTransactionManager implements Lifecycle
         {
             branches.put( new RecoveredBranchInfo( ds.getBranchId() ), false );
             boolean everythingUnregistered = true;
-            for (boolean dsRegistered : branches.values())
+            for ( boolean dsRegistered : branches.values() )
             {
                 everythingUnregistered &= !dsRegistered;
             }
-            if (everythingUnregistered)
+            if ( everythingUnregistered )
             {
                 closeLog();
             }

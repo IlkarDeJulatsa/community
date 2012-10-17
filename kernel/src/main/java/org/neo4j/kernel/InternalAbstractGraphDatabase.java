@@ -191,8 +191,6 @@ public abstract class InternalAbstractGraphDatabase
     protected KernelData extensions;
     protected Caches caches;
 
-    private Throwable recoveryException;
-
     protected final LifeSupport life = new LifeSupport();
     private final Map<String, CacheProvider> cacheProviders;
 
@@ -240,9 +238,9 @@ public abstract class InternalAbstractGraphDatabase
 
             life.start();
 
-            if ( recoveryException != null )
+            if ( txManager.getRecoveryError() != null )
             {
-                throw recoveryException;
+                throw txManager.getRecoveryError();
             }
         }
         catch ( Throwable throwable )
@@ -262,25 +260,20 @@ public abstract class InternalAbstractGraphDatabase
             @Override
             public void notifyStatusChanged( Object instance, LifecycleStatus from, LifecycleStatus to )
             {
+                // TODO do not explicitly depend on order of start() calls in txManager and XaDatasourceManager
+                // use two booleans instead
                 if ( instance instanceof KernelExtensions && to.equals( LifecycleStatus.STARTED ) && txManager
                         instanceof TxManager )
                 {
-                    try
-                    {
-                        InternalAbstractGraphDatabase.this.doRecovery();
-                    }
-                    catch ( Throwable throwable )
-                    {
-                        recoveryException = throwable;
-                    }
+                    InternalAbstractGraphDatabase.this.doRecovery();
                 }
             }
         } );
     }
 
-    protected void doRecovery() throws Throwable
+    protected void doRecovery()
     {
-        txManager.doRecovery();
+//        txManager.doRecovery();
 
         NeoStoreXaDataSource neoStoreDataSource = xaDataSourceManager.getNeoStoreDataSource();
         storeId = neoStoreDataSource.getStoreId();
