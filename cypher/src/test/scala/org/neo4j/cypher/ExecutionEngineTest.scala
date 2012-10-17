@@ -1821,7 +1821,7 @@ RETURN x0.name?
   }
 
   @Test def createEngineWithSpecifiedParserVersion() {
-    val db = new ImpermanentGraphDatabase(Map[String, String]("cypher_parser_version" -> "1.6").asJava)
+    val db = new ImpermanentGraphDatabase(Map[String, String]("cypher_parser_version" -> "1.7").asJava)
     val engine = new ExecutionEngine(db)
 
     try {
@@ -2256,6 +2256,13 @@ RETURN x0.name?
     val result = parseAndExecute("START n=node(0) MATCH n-[?:NOT_EXIST]->x RETURN n, collect(x)")
 
     assert(result.toList === List(Map("n" -> refNode, "collect(x)" -> List())))
+  }
+
+  @Test
+  def params_should_survive_with() {
+    val result = parseAndExecute("START n=node(0) WITH collect(n) as coll where length(coll)={id} RETURN coll", "id"->1)
+
+    assert(result.toList === List(Map("coll" -> List(refNode))))
   }
 
 }

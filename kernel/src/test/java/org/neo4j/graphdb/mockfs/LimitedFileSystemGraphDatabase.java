@@ -17,32 +17,36 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.server.rest.security;
+package org.neo4j.graphdb.mockfs;
 
-import javax.servlet.http.HttpServletRequest;
+import org.neo4j.kernel.EmbeddedGraphDatabase;
+import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
 
-//START SNIPPET: failingRuleWithComplexWildcardPath
-public class PermanentlyFailingSecurityRuleWithComplexWildcardPath implements SecurityRule
+public class LimitedFileSystemGraphDatabase extends EmbeddedGraphDatabase
 {
 
-    public static final String REALM = "WallyWorld"; // as per RFC2617 :-)
+    private LimitedFilesystemAbstraction fs;
+    private int runOutAfter;
 
-    @Override
-    public boolean isAuthorized( HttpServletRequest request )
+    public LimitedFileSystemGraphDatabase( String storeDir )
     {
-        return false;
+        super( storeDir );
     }
 
     @Override
-    public String forUriPath()
+    protected FileSystemAbstraction createFileSystemAbstraction()
     {
-        return "/protected/*/something/else/*/final/bit";
+        return fs = new LimitedFilesystemAbstraction( super.createFileSystemAbstraction() );
     }
 
-    @Override
-    public String wwwAuthenticateHeader()
+
+    public void runOutOfDiskSpaceNao()
     {
-        return SecurityFilter.basicAuthenticationResponse(REALM);
+        this.fs.runOutOfDiskSpace();
+    }
+
+    public void limitWritesTo( int bytes )
+    {
+        this.fs.limitWritesTo(bytes);
     }
 }
-// END SNIPPET: failingRuleWithComplexWildcardPath
