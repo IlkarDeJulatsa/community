@@ -27,6 +27,7 @@ import org.neo4j.graphdb.Traverser.Order
 import org.neo4j.graphdb._
 import org.neo4j.cypher.internal.pipes.{ExecutionContext, QueryState}
 import collection.JavaConverters._
+import org.neo4j.cypher.internal.spi.gdsimpl.GDSBackedQueryContext
 
 /*
 This test tries to set up a situation where CREATE UNIQUE would fail, unless we guard with locks to prevent creating
@@ -68,7 +69,7 @@ class DoubleCheckCreateUniqueTest extends Assertions {
   }
 
   private def createQueryState(tx: Transaction): QueryState = {
-    new QueryState(db, Map.empty, Some(tx))
+    new QueryState(db, new GDSBackedQueryContext(db), Map.empty, Some(tx))
   }
 
   private def createRel(node:Node) {

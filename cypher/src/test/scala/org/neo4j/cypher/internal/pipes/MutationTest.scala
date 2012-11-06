@@ -29,11 +29,12 @@ import org.neo4j.cypher.internal.symbols.{SymbolTable, CypherType, NodeType}
 import collection.{Map => CollectionMap}
 import org.neo4j.cypher.internal.commands.{CreateRelationshipStartItem, CreateNodeStartItem}
 import org.neo4j.cypher.internal.commands.expressions.{Expression, Literal}
+import org.neo4j.cypher.internal.spi.gdsimpl.GDSBackedQueryContext
 
 
 class MutationTest extends ExecutionEngineHelper with Assertions {
 
-  def createQueryState = new QueryState(graph, Map.empty)
+  def createQueryState = new QueryState(graph, new GDSBackedQueryContext(graph), Map.empty)
 
   @Test
   def create_node() {

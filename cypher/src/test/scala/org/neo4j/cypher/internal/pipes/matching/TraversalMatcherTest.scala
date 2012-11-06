@@ -26,6 +26,7 @@ import org.neo4j.cypher.internal.pipes.{ExecutionContext, MutableMaps, QueryStat
 import org.neo4j.graphdb.DynamicRelationshipType.withName
 import org.neo4j.graphdb.Direction.OUTGOING
 import org.neo4j.cypher.internal.commands.True
+import org.neo4j.cypher.internal.spi.gdsimpl.GDSBackedQueryContext
 
 
 class TraversalMatcherTest extends GraphDatabaseTestBase {
@@ -49,7 +50,7 @@ class TraversalMatcherTest extends GraphDatabaseTestBase {
 
     val matcher = new BidirectionalTraversalMatcher(pr1, start, end)
 
-    val queryState = new QueryState(graph, Map.empty)
+    val queryState = new QueryState(graph, new GDSBackedQueryContext(graph), Map.empty)
 
     val result: Seq[Path] = matcher.findMatchingPaths(queryState, ExecutionContext.empty).toSeq
 
@@ -88,7 +89,7 @@ class TraversalMatcherTest extends GraphDatabaseTestBase {
 
     val matcher = new BidirectionalTraversalMatcher(pr1, start, end)
 
-    val queryState = new QueryState(graph, Map.empty)
+    val queryState = new QueryState(graph, new GDSBackedQueryContext(graph), Map.empty)
 
     val result: Seq[Path] = matcher.findMatchingPaths(queryState, ExecutionContext.empty).toSeq
 

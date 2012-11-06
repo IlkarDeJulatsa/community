@@ -25,6 +25,7 @@ import collection.Seq
 import org.neo4j.cypher.internal.pipes._
 import org.neo4j.cypher._
 import internal.commands._
+import internal.spi.gdsimpl.GDSBackedQueryContext
 import internal.symbols.{NodeType, RelationshipType, SymbolTable}
 
 class ExecutionPlanImpl(inputQuery: Query, graph: GraphDatabaseService) extends ExecutionPlan with PatternGraphBuilder {
@@ -123,7 +124,7 @@ class ExecutionPlanImpl(inputQuery: Query, graph: GraphDatabaseService) extends 
 
   private def getLazyReadonlyQuery(pipe: Pipe, columns: List[String]): Map[String, Any] => ExecutionResult = {
     val func = (params: Map[String, Any]) => {
-      val state = new QueryState(graph, params)
+      val state = new QueryState(graph, new GDSBackedQueryContext(graph), params)
       new PipeExecutionResult(pipe.createResults(state), columns)
     }
 
@@ -132,7 +133,7 @@ class ExecutionPlanImpl(inputQuery: Query, graph: GraphDatabaseService) extends 
 
   private def getEagerReadWriteQuery(pipe: Pipe, columns: List[String]): Map[String, Any] => ExecutionResult = {
     val func = (params: Map[String, Any]) => {
-      val state = new QueryState(graph, params)
+      val state = new QueryState(graph, new GDSBackedQueryContext(graph), params)
       new EagerPipeExecutionResult(pipe.createResults(state), columns, state, graph)
     }
 
