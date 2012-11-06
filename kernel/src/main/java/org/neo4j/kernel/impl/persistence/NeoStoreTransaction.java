@@ -337,4 +337,7 @@ public interface NeoStoreTransaction
 
     boolean delistResource( Transaction tx, int tmsuccess )
         throws SystemException;
+
+    PropertyData nodeAddProperty( long nodeId, int propertyKeyId,
+                                  Object value );
 }

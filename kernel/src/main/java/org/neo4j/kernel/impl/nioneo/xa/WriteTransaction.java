@@ -1235,6 +1235,13 @@ public class WriteTransaction extends XaTransaction implements NeoStoreTransacti
     public PropertyData nodeAddProperty( long nodeId, PropertyIndex index,
         Object value )
     {
+        return nodeAddProperty( nodeId, index.getKeyId(), value );
+    }
+
+    @Override
+    public PropertyData nodeAddProperty( long nodeId, int propertyKeyId,
+                                         Object value )
+    {
         NodeRecord nodeRecord = getNodeRecord( nodeId );
         if ( nodeRecord == null )
         {
@@ -1244,7 +1251,7 @@ public class WriteTransaction extends XaTransaction implements NeoStoreTransacti
         if ( !nodeRecord.inUse() )
         {
             throw new IllegalStateException( "Property add on node[" +
-                nodeId + "] illegal since it has been deleted." );
+                    nodeId + "] illegal since it has been deleted." );
         }
 
         assert assertPropertyChain( nodeRecord );
@@ -1255,7 +1262,7 @@ public class WriteTransaction extends XaTransaction implements NeoStoreTransacti
          * since an exception could be thrown in encodeValue now and tx not marked
          * rollback only.
          */
-        getPropertyStore().encodeValue( block, index.getKeyId(), value );
+        getPropertyStore().encodeValue( block, propertyKeyId, value );
         PropertyRecord host = addPropertyBlockToPrimitive( block, nodeRecord, RecordAdded.NODE );
         assert assertPropertyChain( nodeRecord );
         return block.newPropertyData( host, value );

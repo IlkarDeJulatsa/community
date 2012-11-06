@@ -20,6 +20,8 @@
 
 package org.neo4j.kernel;
 
+import static org.slf4j.impl.StaticLoggerBinder.getSingleton;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -80,6 +82,7 @@ import org.neo4j.kernel.impl.nioneo.store.StoreFactory;
 import org.neo4j.kernel.impl.nioneo.store.StoreId;
 import org.neo4j.kernel.impl.nioneo.xa.NeoStoreXaDataSource;
 import org.neo4j.kernel.impl.nioneo.xa.NioNeoDbPersistenceSource;
+import org.neo4j.kernel.impl.persistence.EntityIdGenerator;
 import org.neo4j.kernel.impl.persistence.PersistenceManager;
 import org.neo4j.kernel.impl.persistence.PersistenceSource;
 import org.neo4j.kernel.impl.transaction.AbstractTransactionManager;
@@ -113,8 +116,6 @@ import org.neo4j.kernel.logging.LogbackService;
 import org.neo4j.kernel.logging.Loggers;
 import org.neo4j.kernel.logging.Logging;
 import org.neo4j.tooling.GlobalGraphOperations;
-
-import static org.slf4j.impl.StaticLoggerBinder.getSingleton;
 
 /**
  * Base implementation of GraphDatabaseService. Responsible for creating services, handling dependencies between them,
@@ -1280,6 +1281,18 @@ public abstract class InternalAbstractGraphDatabase
             else if ( NodeManager.class.isAssignableFrom( type ) )
             {
                 return (T) nodeManager;
+            }
+            else if ( PersistenceManager.class.isAssignableFrom( type ) )
+            {
+                return (T) persistenceManager;
+            }
+            else if ( EntityIdGenerator.class.isAssignableFrom( type ) )
+            {
+                return (T) persistenceSource;
+            }
+            else if ( RelationshipTypeHolder.class.isAssignableFrom( type ) )
+            {
+                return (T) relationshipTypeHolder;
             }
             else
             {

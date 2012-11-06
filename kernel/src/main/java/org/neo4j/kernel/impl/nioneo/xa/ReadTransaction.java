@@ -331,6 +331,12 @@ class ReadTransaction implements NeoStoreTransaction
     }
 
     @Override
+    public PropertyData nodeAddProperty( long nodeId, int index, Object value )
+    {
+        throw readOnlyException();
+    }
+
+    @Override
     public PropertyData nodeChangeProperty( long nodeId, PropertyData data,
             Object value )
     {
