@@ -37,11 +37,11 @@ case class Property(entity: String, property: String) extends Expression {
 
         case n: Node =>
           val query = ctx.state.query
-          query.getNodeProperty(n.getId, query.getOrCreatePropertyKeyId(property))
+          query.getNodeProperty(n.getId, query.getPropertyKeyId(property))
 
         case r: Relationship =>
           val query = ctx.state.query
-          query.getRelationshipProperty(r.getId, query.getOrCreatePropertyKeyId(property))
+          query.getRelationshipProperty(r.getId, query.getPropertyKeyId(property))
       }
       } catch {
       case e:NotFoundException =>

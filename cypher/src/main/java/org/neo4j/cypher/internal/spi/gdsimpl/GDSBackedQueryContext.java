@@ -19,52 +19,131 @@
  */
 package org.neo4j.cypher.internal.spi.gdsimpl;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Iterator;
 
 import org.neo4j.cypher.internal.spi.Direction;
 import org.neo4j.cypher.internal.spi.QueryContext;
 import org.neo4j.graphdb.DynamicRelationshipType;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.helpers.collection.IteratorWrapper;
+import org.neo4j.kernel.InternalAbstractGraphDatabase;
+import org.neo4j.kernel.impl.core.NodeManager;
+import org.neo4j.kernel.impl.core.PropertyIndex;
 
 /**
  * An implementation of a query context on top of the existing GraphDatabaseService.
- *
+ * <p/>
  * It provides repeatable read isolation level.
  */
 public class GDSBackedQueryContext implements QueryContext
 {
     private final GraphDatabaseService db;
 
-    /**
-     * We temporarily use a query-local index for property keys, this is to
-     * be replaced by the real property key index used by the database.
-     */
-    private final KeyIndex propertyIndex = new KeyIndex( );
+    private final NodeManager nodeManager;
 
-    /**
-     * We temporarily use a query-local index for relationship types, this is to
-     * be replaced by the real relationship type index used by the database.
-     */
-    private final KeyIndex relationshipTypeIndex = new KeyIndex( );
+    private final KeyIndex relationshipTypeIndex = new KeyIndex();
 
     public GDSBackedQueryContext( GraphDatabaseService db )
     {
         this.db = db;
+        InternalAbstractGraphDatabase d = (InternalAbstractGraphDatabase) db;
+        nodeManager = d.getNodeManager();
     }
+
+    public Iterable<PropertyIndex> nodeManagerIndex( String propertyKey )
+    {
+        try
+        {
+            Method m = nodeManager.getClass().getDeclaredMethod( "index", String.class );
+            m.setAccessible( true );
+            return (Iterable<PropertyIndex>) m.invoke( nodeManager, propertyKey );
+        }
+        catch ( Exception e )
+        {
+            throw new RuntimeException( e );
+        }
+    }
+
+    public PropertyIndex nodeManagerGetIndexFor( int keyId )
+    {
+        try
+        {
+            Method m = nodeManager.getClass().getDeclaredMethod( "getIndexFor", int.class );
+            m.setAccessible( true );
+            return (PropertyIndex) m.invoke( nodeManager, keyId );
+        }
+        catch ( InvocationTargetException e )
+        {
+            throw (RuntimeException) e.getCause();
+        }
+        catch ( NoSuchMethodException e )
+        {
+            throw new RuntimeException( e );
+        }
+        catch ( IllegalAccessException e )
+        {
+            throw new RuntimeException( e );
+        }
+    }
+
+    public PropertyIndex nodeManagerCreatePropertyIndex( String propertyKey )
+    {
+        try
+        {
+            Method m = nodeManager.getClass().getDeclaredMethod( "createPropertyIndex", String.class );
+            m.setAccessible( true );
+            return (PropertyIndex) m.invoke( nodeManager, propertyKey );
+        }
+        catch ( InvocationTargetException e )
+        {
+            throw (RuntimeException) e.getCause();
+        }
+        catch ( NoSuchMethodException e )
+        {
+            throw new RuntimeException( e );
+        }
+        catch ( IllegalAccessException e )
+        {
+            throw new RuntimeException( e );
+        }
+    }
+
 
     @Override
     public int getOrCreatePropertyKeyId( String propertyKey )
     {
-        return propertyIndex.getOrCreate( propertyKey );
+        Iterator<PropertyIndex> iterator = nodeManagerIndex( propertyKey ).iterator();
+        if ( iterator.hasNext() )
+        {
+            return iterator.next().getKeyId();
+        }
+        else
+        {
+            return nodeManagerCreatePropertyIndex( propertyKey ).getKeyId();
+        }
+    }
+
+    private String getIndexKey( int propertyKeyId )
+    {
+        return nodeManagerGetIndexFor( propertyKeyId ).getKey();
     }
 
     @Override
     public int getPropertyKeyId( String propertyKey )
     {
-        return propertyIndex.getIndex( propertyKey );
+        Iterator<PropertyIndex> propertyIndexes = nodeManagerIndex( propertyKey ).iterator();
+
+        if ( propertyIndexes.hasNext() )
+        {
+            return propertyIndexes.next().getKeyId();
+        }
+
+        throw new NotFoundException( "No such property found" );
     }
 
     @Override
@@ -83,13 +162,13 @@ public class GDSBackedQueryContext implements QueryContext
     public void setNodeProperty( long nodeId, int propertyKeyId, Object value )
     {
         db.getNodeById( nodeId )
-                .setProperty( propertyIndex.getKey( propertyKeyId ), value );
+                .setProperty( getIndexKey( propertyKeyId ), value );
     }
 
     @Override
     public Object getNodeProperty( long nodeId, int propertyKeyId )
     {
-        return db.getNodeById( nodeId ).getProperty( propertyIndex.getKey( propertyKeyId ) );
+        return db.getNodeById( nodeId ).getProperty( getIndexKey( propertyKeyId ) );
     }
 
     @Override
@@ -122,35 +201,36 @@ public class GDSBackedQueryContext implements QueryContext
     @Override
     public void setRelationshipProperty( long relationshipId, int propertyKeyId, Object value )
     {
-        db.getRelationshipById( relationshipId ).setProperty( propertyIndex.getKey( propertyKeyId ), value );
+        db.getRelationshipById( relationshipId ).setProperty( getIndexKey( propertyKeyId ), value );
     }
 
     @Override
     public Object getRelationshipProperty( long relationshipId, int propertyKeyId )
     {
-        return db.getRelationshipById( relationshipId ).getProperty( propertyIndex.getKey( propertyKeyId ) );
+        return db.getRelationshipById( relationshipId ).getProperty( getIndexKey( propertyKeyId ) );
     }
 
     @Override
-    public Iterator<Long> getRelationshipsFor( long nodeId, Direction dir, int ... types )
+    public Iterator<Long> getRelationshipsFor( long nodeId, Direction dir, int... types )
     {
-        if(types.length == 0)
+        if ( types.length == 0 )
         {
             return toLongIterator( db.getNodeById( nodeId ).getRelationships( toGDSDirection( dir ) ) );
-        } else
+        }
+        else
         {
             return toLongIterator( db.getNodeById( nodeId ).getRelationships(
                     toGDSDirection( dir ),
-                    toGDSRelationshipTypes(types) ) );
+                    toGDSRelationshipTypes( types ) ) );
         }
     }
 
-    private RelationshipType [] toGDSRelationshipTypes( int [] types )
+    private RelationshipType[] toGDSRelationshipTypes( int[] types )
     {
-        RelationshipType [] relTypes = new RelationshipType[types.length];
-        for(int i=0; i < types.length; i++)
+        RelationshipType[] relTypes = new RelationshipType[types.length];
+        for ( int i = 0; i < types.length; i++ )
         {
-            relTypes[i] = DynamicRelationshipType.withName( relationshipTypeIndex.getKey( types[i]) );
+            relTypes[i] = DynamicRelationshipType.withName( relationshipTypeIndex.getKey( types[i] ) );
         }
 
         return relTypes;
@@ -159,7 +239,7 @@ public class GDSBackedQueryContext implements QueryContext
     private Iterator<Long> toLongIterator( Iterable<Relationship> relationships )
     {
         final Iterator<Relationship> iter = relationships.iterator();
-        return new IteratorWrapper<Long, Relationship>(iter)
+        return new IteratorWrapper<Long, Relationship>( iter )
         {
             @Override
             protected Long underlyingObjectToObject( Relationship rel )
@@ -171,7 +251,7 @@ public class GDSBackedQueryContext implements QueryContext
 
     private org.neo4j.graphdb.Direction toGDSDirection( Direction dir )
     {
-        switch(dir)
+        switch ( dir )
         {
             case INCOMING:
                 return org.neo4j.graphdb.Direction.INCOMING;
