@@ -1831,12 +1831,6 @@ RETURN x0.name?
     assert(resultWithLimit.toList === resultWithoutLimit.toList)
   }
 
-  @Test def should_be_able_to_figure_out_that_aggregations_in_order_by() {
-    val q = "start user=node({0}) return user, avg(user.age) order by avg(user.age) desc, count(*) desc"
-
-    parseAndExecute(q)
-  }
-
   @Test def return_all_identifiers() {
     val a = createNode()
     val b = createNode()
@@ -2283,5 +2277,12 @@ RETURN x0.name?
     val result = parseAndExecute("START a=node(1) MATCH a-->r-->b WHERE has(r.foo) RETURN b")
 
     assert(result.toList === List(Map("b" -> b)))
+  }
+
+  @Test
+  def can_use_identifiers_created_inside_the_foreach() {
+    val result = parseAndExecute("start n=node(0) foreach (x in [1,2,3] : create a= { name: 'foo'}  set a.id = x)")
+
+    assert(result.toList === List())
   }
 }

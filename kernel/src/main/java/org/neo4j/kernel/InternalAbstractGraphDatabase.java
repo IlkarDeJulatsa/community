@@ -113,7 +113,6 @@ import org.neo4j.kernel.lifecycle.LifecycleListener;
 import org.neo4j.kernel.lifecycle.LifecycleStatus;
 import org.neo4j.kernel.logging.ClassicLoggingService;
 import org.neo4j.kernel.logging.LogbackService;
-import org.neo4j.kernel.logging.Loggers;
 import org.neo4j.kernel.logging.Logging;
 import org.neo4j.tooling.GlobalGraphOperations;
 
@@ -309,7 +308,7 @@ public abstract class InternalAbstractGraphDatabase
 
         config.applyChanges( configParams );
 
-        this.msgLog = logging.getLogger( Loggers.NEO4J );
+        this.msgLog = logging.getLogger( getClass() );
 
         config.setLogger( msgLog );
 
@@ -326,7 +325,7 @@ public abstract class InternalAbstractGraphDatabase
         kernelEventHandlers = new KernelEventHandlers();
 
         caches = createCaches();
-        diagnosticsManager = life.add( new DiagnosticsManager( logging.getLogger( Loggers.DIAGNOSTICS ) ) );
+        diagnosticsManager = life.add( new DiagnosticsManager( logging.getLogger( DiagnosticsManager.class ) ) );
 
         kernelPanicEventGenerator = new KernelPanicEventGenerator( kernelEventHandlers );
 
@@ -347,7 +346,7 @@ public abstract class InternalAbstractGraphDatabase
             if ( serviceName == null )
             {
                 txManager = new TxManager( this.storeDir, xaDataSourceManager, kernelPanicEventGenerator, txHook,
-                        logging.getLogger( Loggers.TXMANAGER ), fileSystem );
+                        logging.getLogger( TxManager.class ), fileSystem );
             }
             else
             {
@@ -359,7 +358,8 @@ public abstract class InternalAbstractGraphDatabase
                             + serviceName );
                 }
                 txManager = provider.loadTransactionManager( this.storeDir, xaDataSourceManager,
-                        kernelPanicEventGenerator, txHook, logging.getLogger( Loggers.TXMANAGER ), fileSystem );
+                        kernelPanicEventGenerator, txHook, logging.getLogger( AbstractTransactionManager.class ),
+                        fileSystem );
             }
         }
         life.add( txManager );
@@ -444,7 +444,7 @@ public abstract class InternalAbstractGraphDatabase
         storeFactory = createStoreFactory();
         String keepLogicalLogsConfig = config.get( GraphDatabaseSettings.keep_logical_logs );
         xaFactory = new XaFactory( config, txIdGenerator, txManager, logBufferFactory, fileSystem,
-                logging.getLogger( Loggers.XAFACTORY ), recoveryVerifier, LogPruneStrategies.fromConfigValue(
+                logging.getLogger( XaFactory.class ), recoveryVerifier, LogPruneStrategies.fromConfigValue(
                 fileSystem, keepLogicalLogsConfig ) );
 
         createNeoDataSource();
@@ -463,7 +463,7 @@ public abstract class InternalAbstractGraphDatabase
 
     protected XaDataSourceManager createXaDataSourceManager()
     {
-        return new XaDataSourceManager( logging.getLogger( Loggers.DATASOURCE ) );
+        return new XaDataSourceManager( logging.getLogger( XaDataSourceManager.class ) );
     }
 
     @Override
@@ -610,8 +610,8 @@ public abstract class InternalAbstractGraphDatabase
 
     protected StoreFactory createStoreFactory()
     {
-        return new StoreFactory(config, idGeneratorFactory, new DefaultWindowPoolFactory(), fileSystem,
-                logging.getLogger( Loggers.NEOSTORE ), txHook );
+        return new StoreFactory( config, idGeneratorFactory, new DefaultWindowPoolFactory(), fileSystem,
+                logging.getLogger( StoreFactory.class ), txHook );
     }
 
     protected RecoveryVerifier createRecoveryVerifier()
@@ -753,7 +753,7 @@ public abstract class InternalAbstractGraphDatabase
         {
             // TODO IO stuff should be done in lifecycle. Refactor!
             neoDataSource = new NeoStoreXaDataSource( config,
-                    storeFactory, lockManager, lockReleaser, logging.getLogger( Loggers.DATASOURCE ),
+                    storeFactory, lockManager, lockReleaser, logging.getLogger( NeoStoreXaDataSource.class ),
                     xaFactory, transactionInterceptorProviders, dependencyResolver );
             xaDataSourceManager.registerDataSource( neoDataSource );
 
@@ -1024,8 +1024,8 @@ public abstract class InternalAbstractGraphDatabase
             }
         }
 
-		return settingsClasses;
-	}
+        return settingsClasses;
+    }
 
     @Override
     public boolean equals( Object o )

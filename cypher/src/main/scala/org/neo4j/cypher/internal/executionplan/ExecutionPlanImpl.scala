@@ -125,7 +125,8 @@ class ExecutionPlanImpl(inputQuery: Query, graph: GraphDatabaseService) extends 
   private def getLazyReadonlyQuery(pipe: Pipe, columns: List[String]): Map[String, Any] => ExecutionResult = {
     val func = (params: Map[String, Any]) => {
       val state = createQueryState(params)
-      new PipeExecutionResult(pipe.createResults(state), columns)
+      val results = pipe.createResults(state)
+      new PipeExecutionResult(results, columns)
     }
 
     func
@@ -138,7 +139,8 @@ class ExecutionPlanImpl(inputQuery: Query, graph: GraphDatabaseService) extends 
   private def getEagerReadWriteQuery(pipe: Pipe, columns: List[String]): Map[String, Any] => ExecutionResult = {
     val func = (params: Map[String, Any]) => {
       val state = createQueryState(params)
-      new EagerPipeExecutionResult(pipe.createResults(state), columns, state, graph)
+      val results = pipe.createResults(state)
+      new EagerPipeExecutionResult(results, columns, state, graph)
     }
 
     func
@@ -184,7 +186,8 @@ The Neo4j Team""")
     new CreateNodesAndRelationshipsBuilder(graph),
     new UpdateActionBuilder(graph),
     new EmptyResultBuilder,
-    new TraversalMatcherBuilder(graph)
+    new TraversalMatcherBuilder(graph),
+    new TopPipeBuilder
   )
 
   override def toString = executionPlanText

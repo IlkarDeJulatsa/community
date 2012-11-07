@@ -152,7 +152,7 @@ case class RelationshipIdentifier(name:String) extends MiniMapIdentifier(name) {
   protected def extract(m: MiniMap) = m.relationship
 }
 
-case class MiniMap(relationship: Relationship, node: Node, myState:QueryState)
+case class MiniMap(var relationship: Relationship, var node: Node, myState:QueryState)
   extends ExecutionContext(state = myState) {
 
   override def iterator = throw new RuntimeException
